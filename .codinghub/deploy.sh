@@ -8,7 +8,7 @@ set -euo pipefail
 
 # 配置变量
 PORT="${PORT:-8882}"                      # 监听端口，可通过环境变量覆盖
-SOURCE_DIR="${SOURCE_DIR:-/workspace}"  # 源码目录，也可通过环境变量覆盖
+SOURCE_DIR="${SOURCE_DIR:-.}"  # 源码目录，也可通过环境变量覆盖
 LOG_FILE="${LOG_FILE:-server.log}"        # 日志文件
 
 # 切换到源码目录
