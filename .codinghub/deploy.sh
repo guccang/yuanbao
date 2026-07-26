@@ -8,7 +8,7 @@ set -euo pipefail
 
 # 配置变量
 PORT="${PORT:-8882}"                      # 监听端口，可通过环境变量覆盖
-SOURCE_DIR="${SOURCE_DIR:-/Users/guccang/autoworksapce/yuanbao}"  # 源码目录，也可通过环境变量覆盖
+SOURCE_DIR="${SOURCE_DIR:-/workspace}"  # 源码目录，也可通过环境变量覆盖
 LOG_FILE="${LOG_FILE:-server.log}"        # 日志文件
 
 # 切换到源码目录
@@ -20,24 +20,15 @@ if ! command -v node &>/dev/null; then
     exit 1
 fi
 
-# 确保 http-server 可用（优先用 npx，避免全局安装冲突）
-# REVIEW: 如果团队偏好全局安装，可改为 npm install -g http-server
-if ! command -v http-server &>/dev/null; then
-    echo "http-server 未全局安装，将使用 npx 临时运行。"
-    # 如果 npx 也不可用，则报错
-    if ! command -v npx &>/dev/null; then
-        echo "错误：既没有 http-server 也没有 npx，请先安装 http-server。"
-        exit 1
-    fi
-    SERVER_CMD="npx http-server"
-else
-    SERVER_CMD="http-server"
-fi
+# 预安装 http-server 以确保部署瞬时完成，避免 npx 运行时下载超时
+echo "安装 http-server..."
+npm install -g http-server
+SERVER_CMD="http-server"
 
 # 停止旧服务器（如果有）
 # 仅查找 LISTEN 状态的进程，忽略浏览器等瞬态客户端连接
 echo "检查端口 $PORT 上的旧进程..."
-OLD_PID=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
+OLD_PID=$(timeout 5 lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
 if [ -n "$OLD_PID" ]; then
     for PID in $OLD_PID; do
         if ps -p "$PID" -o comm= | grep -E '(node|http-server)' &>/dev/null; then
