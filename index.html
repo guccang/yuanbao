@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>垃圾车倒垃圾游戏</title>
+<title>趣味学习乐园 — 儿童早教游戏合集</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -92,11 +92,125 @@ const BINS_FOR_STATION = 7;
 const ROAD_HALF = ROAD.width / 2;
 
 // ═══════════════════════════════════════
+//  GAME MODE SYSTEM
+// ═══════════════════════════════════════
+var MODES = { MENU: 'menu', TRUCK: 'truck', NUMBERS: 'numbers', WORDS: 'words', INTERACTIVE: 'interactive' };
+var gameMode = MODES.MENU;
+
+var menuButtons = [
+  { mode: MODES.TRUCK, label: '🚛 垃圾车游戏', sub: 'Garbage Truck Game', x: W / 2 - 175, y: 195, w: 350, h: 60, color: '#4CAF50', hover: '#66BB6A' },
+  { mode: MODES.NUMBERS, label: '🔢 学数字', sub: 'Number Learning', x: W / 2 - 175, y: 270, w: 350, h: 60, color: '#FF7043', hover: '#FF8A65' },
+  { mode: MODES.WORDS, label: '📖 学单词', sub: 'Word Learning', x: W / 2 - 175, y: 345, w: 350, h: 60, color: '#42A5F5', hover: '#64B5F6' },
+  { mode: MODES.INTERACTIVE, label: '🎮 互动学习', sub: 'Interactive Learning', x: W / 2 - 175, y: 420, w: 350, h: 60, color: '#AB47BC', hover: '#BA68C8' },
+];
+
+var backBtn = { x: 15, y: 12, w: 105, h: 36 };
+
+// ═══════════════════════════════════════
+//  NUMBER LEARNING STATE
+// ═══════════════════════════════════════
+var nlState = {
+  score: 0, streak: 0, bestStreak: 0, level: 1, correctAnswer: 0,
+  options: [], objects: [], feedback: '', feedbackTimer: 0, wrongAnswer: -1,
+};
+
+var NL_ITEM_EMOJIS = ['🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🥕', '🌽', '🍕', '🧁', '⚽', '🎈', '🌟', '💎', '🌸', '🐤', '🐟', '🦋', '🍭', '🎵'];
+
+// ═══════════════════════════════════════
+//  WORD LEARNING STATE
+// ═══════════════════════════════════════
+var WORD_SETS = [
+  [
+    { cn: '猫', en: 'Cat', emoji: '🐱' },
+    { cn: '狗', en: 'Dog', emoji: '🐶' },
+    { cn: '鱼', en: 'Fish', emoji: '🐟' },
+    { cn: '鸟', en: 'Bird', emoji: '🐦' },
+    { cn: '兔子', en: 'Rabbit', emoji: '🐰' },
+    { cn: '熊', en: 'Bear', emoji: '🐻' },
+    { cn: '猴子', en: 'Monkey', emoji: '🐵' },
+    { cn: '大象', en: 'Elephant', emoji: '🐘' },
+    { cn: '老虎', en: 'Tiger', emoji: '🐯' },
+    { cn: '猪', en: 'Pig', emoji: '🐷' },
+  ],
+  [
+    { cn: '苹果', en: 'Apple', emoji: '🍎' },
+    { cn: '香蕉', en: 'Banana', emoji: '🍌' },
+    { cn: '葡萄', en: 'Grape', emoji: '🍇' },
+    { cn: '橙子', en: 'Orange', emoji: '🍊' },
+    { cn: '草莓', en: 'Strawberry', emoji: '🍓' },
+    { cn: '西瓜', en: 'Watermelon', emoji: '🍉' },
+    { cn: '桃子', en: 'Peach', emoji: '🍑' },
+    { cn: '樱桃', en: 'Cherry', emoji: '🍒' },
+  ],
+  [
+    { cn: '红色', en: 'Red', emoji: '🔴' },
+    { cn: '蓝色', en: 'Blue', emoji: '🔵' },
+    { cn: '绿色', en: 'Green', emoji: '🟢' },
+    { cn: '黄色', en: 'Yellow', emoji: '🟡' },
+    { cn: '紫色', en: 'Purple', emoji: '🟣' },
+    { cn: '橙色', en: 'Orange', emoji: '🟠' },
+    { cn: '白色', en: 'White', emoji: '⚪' },
+    { cn: '黑色', en: 'Black', emoji: '⚫' },
+  ],
+  [
+    { cn: '汽车', en: 'Car', emoji: '🚗' },
+    { cn: '飞机', en: 'Airplane', emoji: '✈️' },
+    { cn: '轮船', en: 'Ship', emoji: '🚢' },
+    { cn: '火车', en: 'Train', emoji: '🚂' },
+    { cn: '自行车', en: 'Bicycle', emoji: '🚲' },
+    { cn: '公交车', en: 'Bus', emoji: '🚌' },
+    { cn: '火箭', en: 'Rocket', emoji: '🚀' },
+  ],
+  [
+    { cn: '眼睛', en: 'Eye', emoji: '👁️' },
+    { cn: '耳朵', en: 'Ear', emoji: '👂' },
+    { cn: '嘴巴', en: 'Mouth', emoji: '👄' },
+    { cn: '手', en: 'Hand', emoji: '✋' },
+    { cn: '脚', en: 'Foot', emoji: '🦶' },
+    { cn: '鼻子', en: 'Nose', emoji: '👃' },
+    { cn: '心', en: 'Heart', emoji: '❤️' },
+  ],
+];
+
+var wlState = {
+  score: 0, streak: 0, bestStreak: 0, categoryIdx: 0,
+  currentWord: null, options: [], feedback: '', feedbackTimer: 0, wrongIdx: -1,
+  usedWords: [],
+};
+
+// ═══════════════════════════════════════
+//  INTERACTIVE LEARNING STATE
+// ═══════════════════════════════════════
+var ilState = {
+  score: 0, streak: 0, bestStreak: 0, step: 'count',
+  correctNumber: 0, correctWord: null, numberOptions: [], wordOptions: [],
+  objects: [], emoji: '', countAnswer: -1, feedback: '', feedbackTimer: 0,
+  wrongIdx: -1,
+};
+
+var IL_WORDS = [
+  { cn: '苹果', en: 'Apple', emoji: '🍎' },
+  { cn: '星星', en: 'Star', emoji: '⭐' },
+  { cn: '花', en: 'Flower', emoji: '🌸' },
+  { cn: '鱼', en: 'Fish', emoji: '🐟' },
+  { cn: '猫', en: 'Cat', emoji: '🐱' },
+  { cn: '狗', en: 'Dog', emoji: '🐶' },
+  { cn: '树', en: 'Tree', emoji: '🌳' },
+  { cn: '月亮', en: 'Moon', emoji: '🌙' },
+  { cn: '太阳', en: 'Sun', emoji: '☀️' },
+  { cn: '鸟', en: 'Bird', emoji: '🐦' },
+  { cn: '蝴蝶', en: 'Butterfly', emoji: '🦋' },
+  { cn: '汽车', en: 'Car', emoji: '🚗' },
+];
+
+// ═══════════════════════════════════════
 //  DOM
 // ═══════════════════════════════════════
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score-value');
+const headerTitle = document.querySelector('#header h1');
+const hintEl = document.getElementById('hint');
 canvas.width = W;
 canvas.height = H;
 
@@ -1421,6 +1535,24 @@ canvas.addEventListener('click', e => {
   initAudio();
   const pos = canvasPos(e);
 
+  // Menu mode
+  if (gameMode === MODES.MENU) {
+    for (var mi = 0; mi < menuButtons.length; mi++) {
+      var btn = menuButtons[mi];
+      if (pos.x >= btn.x && pos.x <= btn.x + btn.w && pos.y >= btn.y && pos.y <= btn.y + btn.h) {
+        switchMode(btn.mode);
+        return;
+      }
+    }
+    return;
+  }
+
+  // Learning modes
+  if (gameMode === MODES.NUMBERS) { nlHandleClick(pos.x, pos.y); return; }
+  if (gameMode === MODES.WORDS) { wlHandleClick(pos.x, pos.y); return; }
+  if (gameMode === MODES.INTERACTIVE) { ilHandleClick(pos.x, pos.y); return; }
+
+  // Original truck game
   if (dist(pos, truck) < 55) {
     truck.speed = BOOST_SPEED;
     truck.boostTimer = BOOST_DURATION;
@@ -1429,10 +1561,10 @@ canvas.addEventListener('click', e => {
     return;
   }
 
-  for (const bin of bins) {
-    if (dist(pos, bin) < 38) {
-      bin.called = true;
-      spawnSparkles(bin.x, bin.y, 8);
+  for (var bi = 0; bi < bins.length; bi++) {
+    if (dist(pos, bins[bi]) < 38) {
+      bins[bi].called = true;
+      spawnSparkles(bins[bi].x, bins[bi].y, 8);
       return;
     }
   }
@@ -1443,6 +1575,24 @@ canvas.addEventListener('touchstart', e => {
   initAudio();
   if (e.touches.length === 1) {
     const pos = canvasPos(e.touches[0]);
+
+    // Menu mode
+    if (gameMode === MODES.MENU) {
+      for (var mi2 = 0; mi2 < menuButtons.length; mi2++) {
+        var btn2 = menuButtons[mi2];
+        if (pos.x >= btn2.x && pos.x <= btn2.x + btn2.w && pos.y >= btn2.y && pos.y <= btn2.y + btn2.h) {
+          switchMode(btn2.mode);
+          return;
+        }
+      }
+      return;
+    }
+
+    // Learning modes
+    if (gameMode === MODES.NUMBERS) { nlHandleClick(pos.x, pos.y); return; }
+    if (gameMode === MODES.WORDS) { wlHandleClick(pos.x, pos.y); return; }
+    if (gameMode === MODES.INTERACTIVE) { ilHandleClick(pos.x, pos.y); return; }
+
     if (dist(pos, truck) < 60) {
       truck.speed = BOOST_SPEED;
       truck.boostTimer = BOOST_DURATION;
@@ -1450,15 +1600,1002 @@ canvas.addEventListener('touchstart', e => {
       playBoostSound();
       return;
     }
-    for (const bin of bins) {
-      if (dist(pos, bin) < 42) {
-        bin.called = true;
-        spawnSparkles(bin.x, bin.y, 8);
+    for (var bi2 = 0; bi2 < bins.length; bi2++) {
+      if (dist(pos, bins[bi2]) < 42) {
+        bins[bi2].called = true;
+        spawnSparkles(bins[bi2].x, bins[bi2].y, 8);
         return;
       }
     }
   }
 }, { passive: false });
+
+// ═══════════════════════════════════════
+//  MENU DRAWING
+// ═══════════════════════════════════════
+function drawMenu() {
+  // Background
+  var sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#E3F2FD');
+  sky.addColorStop(0.5, '#F3E5F5');
+  sky.addColorStop(1, '#E8F5E9');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative circles
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.arc(100, 80, 70, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(780, 120, 55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(820, 500, 60, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(70, 520, 45, 0, Math.PI * 2); ctx.fill();
+
+  // Title
+  var t = performance.now() / 1000;
+  var bounce = Math.sin(t * 2.5) * 4;
+  ctx.fillStyle = '#5D4037';
+  ctx.font = 'bold 36px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🎓 趣味学习乐园', W / 2, 95 + bounce);
+
+  ctx.fillStyle = '#8D6E63';
+  ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('Learning Wonderland · 选择一个游戏模式吧！', W / 2, 135);
+
+  // Decorative line
+  ctx.strokeStyle = '#BDBDBD';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - 200, 155);
+  ctx.lineTo(W / 2 + 200, 155);
+  ctx.stroke();
+
+  // Menu buttons
+  menuButtons.forEach(function (btn) {
+    var hoverAlpha = (Math.sin(t * 1.8 + menuButtons.indexOf(btn)) * 0.15 + 0.5);
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    rrect(btn.x + 2, btn.y + 3, btn.w, btn.h, 14);
+    ctx.fill();
+
+    // Body with gradient
+    var grad = ctx.createLinearGradient(btn.x, btn.y, btn.x, btn.y + btn.h);
+    grad.addColorStop(0, btn.hover);
+    grad.addColorStop(1, btn.color);
+    ctx.fillStyle = grad;
+    rrect(btn.x, btn.y, btn.w, btn.h, 14);
+    ctx.fill();
+
+    // Subtle highlight
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.15 + hoverAlpha * 0.2) + ')';
+    rrect(btn.x + 2, btn.y + 2, btn.w - 4, btn.h / 2 - 2, 12);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    rrect(btn.x, btn.y, btn.w, btn.h, 14);
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 20px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + 26);
+
+    // Subtitle
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = '12px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(btn.sub, btn.x + btn.w / 2, btn.y + 46);
+  });
+
+  // Footer
+  ctx.fillStyle = '#A1887F';
+  ctx.font = '13px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('👆 点击按钮选择游戏模式', W / 2, 540);
+  ctx.fillText('✅ 适合3-8岁儿童的早教游戏合集', W / 2, 565);
+}
+
+// ═══════════════════════════════════════
+//  MODE TRANSITION HELPERS
+// ═══════════════════════════════════════
+function resetAllModes() {
+  // Keep truck state as-is (it persists)
+  nlState.score = 0; nlState.streak = 0; nlState.bestStreak = 0;
+  nlState.level = 1; nlState.feedback = ''; nlState.feedbackTimer = 0;
+  nlState.wrongAnswer = -1;
+
+  wlState.score = 0; wlState.streak = 0; wlState.bestStreak = 0;
+  wlState.categoryIdx = 0; wlState.currentWord = null; wlState.options = [];
+  wlState.feedback = ''; wlState.feedbackTimer = 0; wlState.wrongIdx = -1;
+  wlState.usedWords = [];
+
+  ilState.score = 0; ilState.streak = 0; ilState.bestStreak = 0;
+  ilState.step = 'count'; ilState.feedback = ''; ilState.feedbackTimer = 0;
+  ilState.wrongIdx = -1;
+}
+
+function switchMode(mode) {
+  if (mode === MODES.MENU) {
+    stopEngineSound();
+    headerTitle.textContent = '🎓 趣味学习乐园';
+    hintEl.innerHTML = '👆 点击按钮选择游戏模式';
+    scoreEl.textContent = '0';
+  }
+  if (mode === MODES.TRUCK) {
+    ensureEngineRunning();
+    headerTitle.textContent = '🚛 垃圾车来啦！';
+    hintEl.innerHTML = '👆 点垃圾车加速 &nbsp;|&nbsp; 👆 点垃圾桶召唤垃圾车';
+    scoreEl.textContent = score;
+  }
+  if (mode === MODES.NUMBERS) {
+    stopEngineSound();
+    headerTitle.textContent = '🔢 学数字';
+    hintEl.innerHTML = '👆 数一数物品，点击正确的数字吧！';
+    scoreEl.textContent = nlState.score;
+  }
+  if (mode === MODES.WORDS) {
+    stopEngineSound();
+    headerTitle.textContent = '📖 学单词';
+    hintEl.innerHTML = '👆 看中文和图片，选择对应的英文单词！';
+    scoreEl.textContent = wlState.score;
+  }
+  if (mode === MODES.INTERACTIVE) {
+    stopEngineSound();
+    headerTitle.textContent = '🎮 互动学习';
+    hintEl.innerHTML = '👆 先数数，再认单词，双重挑战！';
+    scoreEl.textContent = ilState.score;
+  }
+  gameMode = mode;
+  resetAllModes();
+  if (mode === MODES.NUMBERS) nlInitRound();
+  if (mode === MODES.WORDS) wlInitRound();
+  if (mode === MODES.INTERACTIVE) ilInitRound();
+}
+
+function stopEngineSound() {
+  if (engineGain && audioCtx) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+}
+
+function drawBackButton() {
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  rrect(backBtn.x + 1, backBtn.y + 2, backBtn.w, backBtn.h, 10);
+  ctx.fill();
+  // Body
+  var grad = ctx.createLinearGradient(backBtn.x, backBtn.y, backBtn.x, backBtn.y + backBtn.h);
+  grad.addColorStop(0, '#78909C');
+  grad.addColorStop(1, '#546E7A');
+  ctx.fillStyle = grad;
+  rrect(backBtn.x, backBtn.y, backBtn.w, backBtn.h, 10);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  rrect(backBtn.x, backBtn.y, backBtn.w, backBtn.h, 10);
+  ctx.stroke();
+  // Text
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 13px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('← 返回菜单', backBtn.x + backBtn.w / 2, backBtn.y + 24);
+}
+
+function isInsideBackButton(x, y) {
+  return x >= backBtn.x && x <= backBtn.x + backBtn.w && y >= backBtn.y && y <= backBtn.y + backBtn.h;
+}
+
+// ═══════════════════════════════════════
+//  NUMBER LEARNING MODE
+// ═══════════════════════════════════════
+function nlInitRound() {
+  var maxNum = nlState.level <= 2 ? 5 : (nlState.level <= 4 ? 10 : (nlState.level <= 6 ? 15 : 20));
+  var count = Math.floor(Math.random() * maxNum) + 1;
+  nlState.correctAnswer = count;
+  nlState.objects = [];
+  nlState.feedback = '';
+  nlState.feedbackTimer = 0;
+  nlState.wrongAnswer = -1;
+
+  // Generate object positions (scattered but not overlapping)
+  var usedPositions = [];
+  for (var i = 0; i < count; i++) {
+    var attempts = 0;
+    var px, py, ok;
+    do {
+      px = 80 + Math.random() * (W - 160);
+      py = 120 + Math.random() * 220;
+      ok = true;
+      for (var j = 0; j < usedPositions.length; j++) {
+        if (Math.abs(px - usedPositions[j].x) < 48 && Math.abs(py - usedPositions[j].y) < 48) {
+          ok = false;
+          break;
+        }
+      }
+      attempts++;
+    } while (!ok && attempts < 30);
+    usedPositions.push({ x: px, y: py });
+    nlState.objects.push({
+      x: px, y: py,
+      emoji: NL_ITEM_EMOJIS[Math.floor(Math.random() * NL_ITEM_EMOJIS.length)],
+      size: 20 + Math.random() * 14,
+      angle: (Math.random() - 0.5) * 0.5,
+    });
+  }
+
+  // Generate number options (including correct answer + 3 distractors)
+  nlState.options = [count];
+  while (nlState.options.length < 4) {
+    var opt = Math.floor(Math.random() * maxNum) + 1;
+    if (nlState.options.indexOf(opt) === -1) nlState.options.push(opt);
+  }
+  // Shuffle
+  for (var i2 = nlState.options.length - 1; i2 > 0; i2--) {
+    var j2 = Math.floor(Math.random() * (i2 + 1));
+    var tmp = nlState.options[i2];
+    nlState.options[i2] = nlState.options[j2];
+    nlState.options[j2] = tmp;
+  }
+}
+
+function nlDraw() {
+  // Background
+  var nlSky = ctx.createLinearGradient(0, 0, 0, H);
+  nlSky.addColorStop(0, '#FFF3E0');
+  nlSky.addColorStop(0.6, '#FFF8E1');
+  nlSky.addColorStop(1, '#F1F8E9');
+  ctx.fillStyle = nlSky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative elements
+  ctx.fillStyle = 'rgba(255,224,130,0.3)';
+  ctx.beginPath(); ctx.arc(80, 80, 50, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(800, 200, 40, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(780, 80, 35, 0, Math.PI * 2); ctx.fill();
+
+  // Grass at bottom
+  ctx.fillStyle = '#C8E6C9';
+  ctx.fillRect(0, H - 60, W, 60);
+
+  drawBackButton();
+
+  // Header
+  ctx.fillStyle = '#E65100';
+  ctx.font = 'bold 22px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🔢 学数字 — 数一数有几个？', W / 2, 52);
+
+  // Score display
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 15px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('⭐ ' + nlState.score + ' 分 | 等级 ' + nlState.level, W - 20, 52);
+
+  // Draw objects
+  var t = performance.now() / 1000;
+  nlState.objects.forEach(function (obj, i) {
+    var bobY = Math.sin(t * 2 + i * 0.7) * 3;
+    ctx.save();
+    ctx.translate(obj.x, obj.y + bobY);
+    ctx.rotate(obj.angle + Math.sin(t + i) * 0.1);
+    ctx.font = obj.size + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(obj.emoji, 0, 0);
+    // Subtle shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillText(obj.emoji, 2, 2);
+    ctx.fillStyle = '#333';
+    ctx.fillText(obj.emoji, 0, 0);
+    ctx.restore();
+  });
+
+  // Number buttons
+  var btnW = 70;
+  var totalW = nlState.options.length * btnW + (nlState.options.length - 1) * 16;
+  var startX = (W - totalW) / 2;
+  var btnY = 390;
+  var btnH = 60;
+
+  nlState.options.forEach(function (num, i) {
+    var bx = startX + i * (btnW + 16);
+    var isWrong = num === nlState.wrongAnswer;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    rrect(bx + 2, btnY + 3, btnW, btnH, 12);
+    ctx.fill();
+
+    // Body
+    var grad = ctx.createLinearGradient(bx, btnY, bx, btnY + btnH);
+    if (isWrong) {
+      grad.addColorStop(0, '#EF9A9A');
+      grad.addColorStop(1, '#E53935');
+    } else {
+      grad.addColorStop(0, '#FFCC80');
+      grad.addColorStop(1, '#FF9800');
+    }
+    ctx.fillStyle = grad;
+    rrect(bx, btnY, btnW, btnH, 12);
+    ctx.fill();
+
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    rrect(bx + 2, btnY + 2, btnW - 4, btnH / 2 - 2, 10);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    rrect(bx, btnY, btnW, btnH, 12);
+    ctx.stroke();
+
+    // Number text
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 28px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(num, bx + btnW / 2, btnY + 40);
+  });
+
+  // Feedback
+  if (nlState.feedback) {
+    var fAlpha = Math.min(1, nlState.feedbackTimer / 600);
+    var fY = 340 + (1 - fAlpha) * 20;
+    ctx.fillStyle = 'rgba(255,255,255,' + fAlpha + ')';
+    ctx.font = 'bold 26px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(nlState.feedback, W / 2, fY);
+  }
+
+  // Hint
+  ctx.fillStyle = '#8D6E63';
+  ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('👆 数一数物品，点击正确的数字吧！', W / 2, 500);
+
+  // Streak indicator
+  if (nlState.streak >= 2) {
+    var streakAlpha = 0.6 + Math.sin(t * 3) * 0.3;
+    ctx.fillStyle = 'rgba(255,152,0,' + streakAlpha + ')';
+    ctx.font = 'bold 16px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('🔥 连对 ' + nlState.streak + ' 次！', W / 2, 530);
+  }
+
+  drawParticles();
+}
+
+function nlUpdate(dt) {
+  updateParticles();
+  if (nlState.feedbackTimer > 0) {
+    nlState.feedbackTimer -= dt;
+    if (nlState.feedbackTimer <= 0) {
+      nlState.feedbackTimer = 0;
+      nlState.feedback = '';
+      nlState.wrongAnswer = -1;
+      nlInitRound();
+    }
+  }
+}
+
+function nlHandleClick(x, y) {
+  if (isInsideBackButton(x, y)) {
+    switchMode(MODES.MENU);
+    return;
+  }
+  if (nlState.feedbackTimer > 0) return; // Animation playing
+
+  var btnW = 70;
+  var totalW = nlState.options.length * btnW + (nlState.options.length - 1) * 16;
+  var startX = (W - totalW) / 2;
+  var btnY = 390;
+  var btnH = 60;
+
+  for (var i = 0; i < nlState.options.length; i++) {
+    var bx = startX + i * (btnW + 16);
+    if (x >= bx && x <= bx + btnW && y >= btnY && y <= btnY + btnH) {
+      var chosen = nlState.options[i];
+      if (chosen === nlState.correctAnswer) {
+        nlState.score += 10 + nlState.level * 2;
+        scoreEl.textContent = nlState.score;
+        nlState.streak++;
+        if (nlState.streak > nlState.bestStreak) nlState.bestStreak = nlState.streak;
+        nlState.feedback = '✅ 太棒了！答对啦！';
+        nlState.feedbackTimer = 900;
+        spawnSparkles(x, y, 12);
+        playPickupSound();
+        if (nlState.streak > 0 && nlState.streak % 5 === 0) {
+          nlState.level++;
+          playStationSound();
+        }
+      } else {
+        nlState.streak = 0;
+        nlState.wrongAnswer = chosen;
+        nlState.feedback = '❌ 再数一数哦～';
+        nlState.feedbackTimer = 1100;
+        playTone(200, 0.3, 'sawtooth', 0.06, 80);
+      }
+      break;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+//  WORD LEARNING MODE
+// ═══════════════════════════════════════
+function wlInitRound() {
+  wlState.feedback = '';
+  wlState.feedbackTimer = 0;
+  wlState.wrongIdx = -1;
+
+  var cat = WORD_SETS[wlState.categoryIdx];
+  // Pick a word we haven't used recently
+  var available = [];
+  for (var i = 0; i < cat.length; i++) {
+    if (wlState.usedWords.indexOf(cat[i].cn) === -1) available.push(cat[i]);
+  }
+  if (available.length === 0) {
+    wlState.usedWords = [];
+    available = cat.slice();
+  }
+  var chosen = available[Math.floor(Math.random() * available.length)];
+  wlState.currentWord = chosen;
+  wlState.usedWords.push(chosen.cn);
+  if (wlState.usedWords.length > cat.length * 2) wlState.usedWords = wlState.usedWords.slice(-cat.length);
+
+  // Build options: correct + 3 distractors from all word sets
+  var allWords = [];
+  WORD_SETS.forEach(function (set) {
+    set.forEach(function (w) { allWords.push(w); });
+  });
+  wlState.options = [chosen];
+  while (wlState.options.length < 4) {
+    var opt = allWords[Math.floor(Math.random() * allWords.length)];
+    var dup = false;
+    for (var j = 0; j < wlState.options.length; j++) {
+      if (wlState.options[j].en === opt.en) { dup = true; break; }
+    }
+    if (!dup) wlState.options.push(opt);
+  }
+  // Shuffle
+  for (var i2 = wlState.options.length - 1; i2 > 0; i2--) {
+    var j2 = Math.floor(Math.random() * (i2 + 1));
+    var tmp = wlState.options[i2];
+    wlState.options[i2] = wlState.options[j2];
+    wlState.options[j2] = tmp;
+  }
+}
+
+function wlDraw() {
+  // Background
+  var wlSky = ctx.createLinearGradient(0, 0, 0, H);
+  wlSky.addColorStop(0, '#E3F2FD');
+  wlSky.addColorStop(0.5, '#E8EAF6');
+  wlSky.addColorStop(1, '#F3E5F5');
+  ctx.fillStyle = wlSky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative
+  ctx.fillStyle = 'rgba(129,212,250,0.25)';
+  ctx.beginPath(); ctx.arc(750, 100, 65, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(100, 500, 55, 0, Math.PI * 2); ctx.fill();
+
+  drawBackButton();
+
+  // Header
+  ctx.fillStyle = '#1565C0';
+  ctx.font = 'bold 22px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('📖 学单词 — 找出正确的英文！', W / 2, 52);
+
+  // Score
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 15px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('⭐ ' + wlState.score + ' 分', W - 20, 52);
+
+  if (!wlState.currentWord) return;
+
+  var t = performance.now() / 1000;
+
+  // Chinese word display card
+  var cardX = W / 2 - 130, cardY = 85, cardW = 260, cardH = 120;
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  rrect(cardX + 3, cardY + 4, cardW, cardH, 16);
+  ctx.fill();
+  var cardGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+  cardGrad.addColorStop(0, '#FFF');
+  cardGrad.addColorStop(1, '#F5F5F5');
+  ctx.fillStyle = cardGrad;
+  rrect(cardX, cardY, cardW, cardH, 16);
+  ctx.fill();
+  ctx.strokeStyle = '#BBDEFB';
+  ctx.lineWidth = 2;
+  rrect(cardX, cardY, cardW, cardH, 16);
+  ctx.stroke();
+
+  // Emoji
+  ctx.font = '50px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(wlState.currentWord.emoji, W / 2, cardY + 50);
+
+  // Chinese word
+  ctx.fillStyle = '#1A237E';
+  ctx.font = 'bold 32px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(wlState.currentWord.cn, W / 2, cardY + 95);
+
+  // Category label
+  var catNames = ['动物 Animals', '水果 Fruits', '颜色 Colors', '交通工具 Vehicles', '身体 Body'];
+  ctx.fillStyle = '#78909C';
+  ctx.font = '12px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('📂 ' + catNames[wlState.categoryIdx], W / 2, cardY + 115);
+
+  // 2x2 grid of answer buttons
+  var gridX = W / 2 - 170, gridY = 225, btnW = 155, btnH = 70, gap = 16;
+  var positions = [
+    { x: gridX, y: gridY },
+    { x: gridX + btnW + gap, y: gridY },
+    { x: gridX, y: gridY + btnH + gap },
+    { x: gridX + btnW + gap, y: gridY + btnH + gap },
+  ];
+
+  wlState.options.forEach(function (opt, i) {
+    var pos = positions[i];
+    var isWrong = i === wlState.wrongIdx;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    rrect(pos.x + 2, pos.y + 3, btnW, btnH, 12);
+    ctx.fill();
+
+    var grad = ctx.createLinearGradient(pos.x, pos.y, pos.x, pos.y + btnH);
+    if (isWrong) {
+      grad.addColorStop(0, '#EF9A9A');
+      grad.addColorStop(1, '#E53935');
+    } else {
+      grad.addColorStop(0, '#90CAF9');
+      grad.addColorStop(1, '#42A5F5');
+    }
+    ctx.fillStyle = grad;
+    rrect(pos.x, pos.y, btnW, btnH, 12);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    rrect(pos.x + 2, pos.y + 2, btnW - 4, btnH / 2 - 2, 10);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    rrect(pos.x, pos.y, btnW, btnH, 12);
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(opt.en, pos.x + btnW / 2, pos.y + btnH / 2 + 6);
+  });
+
+  // Feedback
+  if (wlState.feedback) {
+    var fAlpha = Math.min(1, wlState.feedbackTimer / 600);
+    var fY = 405 + (1 - fAlpha) * 20;
+    ctx.fillStyle = 'rgba(255,255,255,' + fAlpha + ')';
+    ctx.font = 'bold 26px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(wlState.feedback, W / 2, fY);
+  }
+
+  // Hint
+  ctx.fillStyle = '#8D6E63';
+  ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('👆 看中文和图片，选择对应的英文单词！', W / 2, 475);
+
+  // Category switcher
+  var catWidths = [90, 80, 80, 110, 80];
+  var totalCatW = catWidths.reduce(function (a, b) { return a + b; }, 0) + 4 * 8;
+  var catStartX = (W - totalCatW) / 2;
+  var catY2 = 510;
+  for (var c = 0; c < catNames.length; c++) {
+    var cw = catWidths[c];
+    var cx = catStartX + catWidths.slice(0, c).reduce(function (a, b) { return a + b + 8; }, 0);
+    var isActive = c === wlState.categoryIdx;
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    rrect(cx + 1, catY2 + 1, cw, 28, 8);
+    ctx.fill();
+    ctx.fillStyle = isActive ? '#42A5F5' : '#B0BEC5';
+    rrect(cx, catY2, cw, 28, 8);
+    ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 10px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(catNames[c].split(' ')[0], cx + cw / 2, catY2 + 19);
+  }
+
+  // Streak
+  if (wlState.streak >= 2) {
+    var streakAlpha2 = 0.6 + Math.sin(t * 3) * 0.3;
+    ctx.fillStyle = 'rgba(21,101,192,' + streakAlpha2 + ')';
+    ctx.font = 'bold 16px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔥 连对 ' + wlState.streak + ' 次！', W / 2, 560);
+  }
+
+  drawParticles();
+}
+
+function wlUpdate(dt) {
+  updateParticles();
+  if (wlState.feedbackTimer > 0) {
+    wlState.feedbackTimer -= dt;
+    if (wlState.feedbackTimer <= 0) {
+      wlState.feedbackTimer = 0;
+      wlState.feedback = '';
+      wlState.wrongIdx = -1;
+      wlInitRound();
+    }
+  }
+}
+
+function wlHandleClick(x, y) {
+  if (isInsideBackButton(x, y)) {
+    switchMode(MODES.MENU);
+    return;
+  }
+  if (wlState.feedbackTimer > 0) return;
+
+  // Category switcher buttons
+  var catNames = ['动物 Animals', '水果 Fruits', '颜色 Colors', '交通工具 Vehicles', '身体 Body'];
+  var catWidths = [90, 80, 80, 110, 80];
+  var totalCatW = catWidths.reduce(function (a, b) { return a + b; }, 0) + 4 * 8;
+  var catStartX = (W - totalCatW) / 2;
+  var catY2 = 510;
+  for (var c = 0; c < catNames.length; c++) {
+    var cw = catWidths[c];
+    var cx = catStartX + catWidths.slice(0, c).reduce(function (a, b) { return a + b + 8; }, 0);
+    if (x >= cx && x <= cx + cw && y >= catY2 && y <= catY2 + 28) {
+      wlState.categoryIdx = c;
+      wlState.usedWords = [];
+      wlInitRound();
+      return;
+    }
+  }
+
+  // Answer buttons (2x2 grid)
+  var gridX = W / 2 - 170, gridY = 225, btnW = 155, btnH = 70, gap = 16;
+  var positions = [
+    { x: gridX, y: gridY },
+    { x: gridX + btnW + gap, y: gridY },
+    { x: gridX, y: gridY + btnH + gap },
+    { x: gridX + btnW + gap, y: gridY + btnH + gap },
+  ];
+
+  for (var i = 0; i < wlState.options.length; i++) {
+    var pos = positions[i];
+    if (x >= pos.x && x <= pos.x + btnW && y >= pos.y && y <= pos.y + btnH) {
+      if (wlState.options[i].en === wlState.currentWord.en) {
+        wlState.score += 10;
+        scoreEl.textContent = wlState.score;
+        wlState.streak++;
+        if (wlState.streak > wlState.bestStreak) wlState.bestStreak = wlState.streak;
+        wlState.feedback = '✅ 正确！' + wlState.currentWord.cn + ' = ' + wlState.currentWord.en;
+        wlState.feedbackTimer = 1100;
+        spawnSparkles(x, y, 10);
+        playPickupSound();
+        if (wlState.streak > 0 && wlState.streak % 5 === 0) {
+          wlState.categoryIdx = (wlState.categoryIdx + 1) % WORD_SETS.length;
+          wlState.usedWords = [];
+          playStationSound();
+        }
+      } else {
+        wlState.streak = 0;
+        wlState.wrongIdx = i;
+        wlState.feedback = '❌ 不对哦～正确答案是 ' + wlState.currentWord.en;
+        wlState.feedbackTimer = 1400;
+        playTone(200, 0.3, 'sawtooth', 0.06, 80);
+      }
+      break;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+//  INTERACTIVE LEARNING MODE
+// ═══════════════════════════════════════
+function ilInitRound() {
+  ilState.step = 'count';
+  ilState.feedback = '';
+  ilState.feedbackTimer = 0;
+  ilState.wrongIdx = -1;
+  ilState.countAnswer = -1;
+
+  // Pick a random word
+  var w = IL_WORDS[Math.floor(Math.random() * IL_WORDS.length)];
+  ilState.correctWord = w;
+  ilState.correctNumber = Math.floor(Math.random() * 7) + 2; // 2-8
+  ilState.emoji = w.emoji;
+
+  // Generate objects for counting
+  ilState.objects = [];
+  var usedPositions = [];
+  for (var i = 0; i < ilState.correctNumber; i++) {
+    var attempts = 0;
+    var px, py, ok;
+    do {
+      px = 100 + Math.random() * (W - 200);
+      py = 150 + Math.random() * 150;
+      ok = true;
+      for (var j = 0; j < usedPositions.length; j++) {
+        if (Math.abs(px - usedPositions[j].x) < 50 && Math.abs(py - usedPositions[j].y) < 50) {
+          ok = false;
+          break;
+        }
+      }
+      attempts++;
+    } while (!ok && attempts < 20);
+    usedPositions.push({ x: px, y: py });
+    ilState.objects.push({ x: px, y: py, size: 22 + Math.random() * 14 });
+  }
+
+  // Number options
+  ilState.numberOptions = [ilState.correctNumber];
+  while (ilState.numberOptions.length < 4) {
+    var opt = Math.floor(Math.random() * 10) + 1;
+    if (ilState.numberOptions.indexOf(opt) === -1) ilState.numberOptions.push(opt);
+  }
+  for (var i2 = ilState.numberOptions.length - 1; i2 > 0; i2--) {
+    var j2 = Math.floor(Math.random() * (i2 + 1));
+    var tmp = ilState.numberOptions[i2];
+    ilState.numberOptions[i2] = ilState.numberOptions[j2];
+    ilState.numberOptions[j2] = tmp;
+  }
+
+  // Word options
+  ilState.wordOptions = [w];
+  while (ilState.wordOptions.length < 4) {
+    var ow = IL_WORDS[Math.floor(Math.random() * IL_WORDS.length)];
+    var dup = false;
+    for (var k = 0; k < ilState.wordOptions.length; k++) {
+      if (ilState.wordOptions[k].en === ow.en) { dup = true; break; }
+    }
+    if (!dup) ilState.wordOptions.push(ow);
+  }
+  for (var i3 = ilState.wordOptions.length - 1; i3 > 0; i3--) {
+    var j3 = Math.floor(Math.random() * (i3 + 1));
+    var tmp2 = ilState.wordOptions[i3];
+    ilState.wordOptions[i3] = ilState.wordOptions[j3];
+    ilState.wordOptions[j3] = tmp2;
+  }
+}
+
+function ilDraw() {
+  // Background
+  var ilSky = ctx.createLinearGradient(0, 0, 0, H);
+  ilSky.addColorStop(0, '#F3E5F5');
+  ilSky.addColorStop(0.5, '#FFF3E0');
+  ilSky.addColorStop(1, '#E8F5E9');
+  ctx.fillStyle = ilSky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative
+  ctx.fillStyle = 'rgba(206,147,216,0.2)';
+  ctx.beginPath(); ctx.arc(120, 200, 45, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(780, 100, 40, 0, Math.PI * 2); ctx.fill();
+
+  drawBackButton();
+
+  // Header
+  ctx.fillStyle = '#6A1B9A';
+  ctx.font = 'bold 22px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🎮 互动学习 — 数数 + 认单词', W / 2, 52);
+
+  // Score
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 15px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('⭐ ' + ilState.score + ' 分', W - 20, 52);
+
+  var t = performance.now() / 1000;
+
+  // Draw objects
+  ilState.objects.forEach(function (obj, i) {
+    var bobY = Math.sin(t * 2.5 + i * 0.8) * 3;
+    ctx.save();
+    ctx.translate(obj.x, obj.y + bobY);
+    ctx.font = obj.size + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ilState.emoji, 0, 0);
+    ctx.restore();
+  });
+
+  // Step indicator
+  ctx.fillStyle = '#9C27B0';
+  ctx.font = 'bold 15px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  var stepText = ilState.step === 'count' ? '第1步：数一数有多少个 ' + ilState.emoji + ' ？' : '第2步：' + ilState.correctNumber + ' 个 ' + ilState.emoji + ' 的英文是什么？';
+  ctx.fillText(stepText, W / 2, 335);
+
+  if (ilState.step === 'count') {
+    // Number buttons
+    var btnW = 70, btnH = 55, gap = 14;
+    var totalW = ilState.numberOptions.length * btnW + (ilState.numberOptions.length - 1) * gap;
+    var startX = (W - totalW) / 2;
+    var btnY = 360;
+
+    ilState.numberOptions.forEach(function (num, i) {
+      var bx = startX + i * (btnW + gap);
+      var isWrong = num === ilState.wrongIdx;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      rrect(bx + 2, btnY + 2, btnW, btnH, 12);
+      ctx.fill();
+
+      var grad = ctx.createLinearGradient(bx, btnY, bx, btnY + btnH);
+      if (isWrong) {
+        grad.addColorStop(0, '#EF9A9A');
+        grad.addColorStop(1, '#E53935');
+      } else {
+        grad.addColorStop(0, '#CE93D8');
+        grad.addColorStop(1, '#8E24AA');
+      }
+      ctx.fillStyle = grad;
+      rrect(bx, btnY, btnW, btnH, 12);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      rrect(bx + 2, btnY + 2, btnW - 4, btnH / 2 - 2, 10);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 24px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(num, bx + btnW / 2, btnY + 36);
+    });
+  } else {
+    // Word buttons (2x2 grid)
+    var gx = W / 2 - 170, gy = 360, gbw = 155, gbh = 55, ggap = 14;
+    var gpos = [
+      { x: gx, y: gy },
+      { x: gx + gbw + ggap, y: gy },
+      { x: gx, y: gy + gbh + ggap },
+      { x: gx + gbw + ggap, y: gy + gbh + ggap },
+    ];
+
+    ilState.wordOptions.forEach(function (opt, i) {
+      var pos = gpos[i];
+      var isWrong = i === ilState.wrongIdx;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      rrect(pos.x + 2, pos.y + 2, gbw, gbh, 10);
+      ctx.fill();
+
+      var grad = ctx.createLinearGradient(pos.x, pos.y, pos.x, pos.y + gbh);
+      if (isWrong) {
+        grad.addColorStop(0, '#EF9A9A');
+        grad.addColorStop(1, '#E53935');
+      } else {
+        grad.addColorStop(0, '#81C784');
+        grad.addColorStop(1, '#388E3C');
+      }
+      ctx.fillStyle = grad;
+      rrect(pos.x, pos.y, gbw, gbh, 10);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      rrect(pos.x + 2, pos.y + 2, gbw - 4, gbh / 2 - 2, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 16px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(opt.en, pos.x + gbw / 2, pos.y + gbh / 2 + 5);
+    });
+  }
+
+  // Feedback
+  if (ilState.feedback) {
+    var fAlpha = Math.min(1, ilState.feedbackTimer / 600);
+    var fY = 450 + (1 - fAlpha) * 20;
+    ctx.fillStyle = 'rgba(255,255,255,' + fAlpha + ')';
+    ctx.font = 'bold 24px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(ilState.feedback, W / 2, fY);
+  }
+
+  // Hint
+  ctx.fillStyle = '#8D6E63';
+  ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('👆 先数数，再认单词，双重挑战！', W / 2, 510);
+
+  // Streak
+  if (ilState.streak >= 2) {
+    var streakAlpha3 = 0.6 + Math.sin(t * 3) * 0.3;
+    ctx.fillStyle = 'rgba(106,27,154,' + streakAlpha3 + ')';
+    ctx.font = 'bold 16px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔥 连对 ' + ilState.streak + ' 次！', W / 2, 540);
+  }
+
+  drawParticles();
+}
+
+function ilUpdate(dt) {
+  updateParticles();
+  if (ilState.feedbackTimer > 0) {
+    ilState.feedbackTimer -= dt;
+    if (ilState.feedbackTimer <= 0) {
+      ilState.feedbackTimer = 0;
+      ilState.feedback = '';
+      ilState.wrongIdx = -1;
+      ilInitRound();
+    }
+  }
+}
+
+function ilHandleClick(x, y) {
+  if (isInsideBackButton(x, y)) {
+    switchMode(MODES.MENU);
+    return;
+  }
+  if (ilState.feedbackTimer > 0) return;
+
+  if (ilState.step === 'count') {
+    var btnW = 70, btnH = 55, gap = 14;
+    var totalW = ilState.numberOptions.length * btnW + (ilState.numberOptions.length - 1) * gap;
+    var startX = (W - totalW) / 2;
+    var btnY = 360;
+
+    for (var i = 0; i < ilState.numberOptions.length; i++) {
+      var bx = startX + i * (btnW + gap);
+      if (x >= bx && x <= bx + btnW && y >= btnY && y <= btnY + btnH) {
+        var chosen = ilState.numberOptions[i];
+        if (chosen === ilState.correctNumber) {
+          ilState.countAnswer = chosen;
+          ilState.step = 'word';
+          playPickupSound();
+          spawnSparkles(x, y, 8);
+        } else {
+          ilState.wrongIdx = chosen;
+          ilState.feedback = '❌ 再数一遍！';
+          ilState.feedbackTimer = 800;
+          playTone(200, 0.3, 'sawtooth', 0.06, 80);
+        }
+        break;
+      }
+    }
+  } else if (ilState.step === 'word') {
+    var gx = W / 2 - 170, gy = 360, gbw = 155, gbh = 55, ggap = 14;
+    var gpos = [
+      { x: gx, y: gy },
+      { x: gx + gbw + ggap, y: gy },
+      { x: gx, y: gy + gbh + ggap },
+      { x: gx + gbw + ggap, y: gy + gbh + ggap },
+    ];
+
+    for (var j = 0; j < ilState.wordOptions.length; j++) {
+      var pos = gpos[j];
+      if (x >= pos.x && x <= pos.x + gbw && y >= pos.y && y <= pos.y + gbh) {
+        if (ilState.wordOptions[j].en === ilState.correctWord.en) {
+          ilState.score += 20;
+          scoreEl.textContent = ilState.score;
+          ilState.streak++;
+          if (ilState.streak > ilState.bestStreak) ilState.bestStreak = ilState.streak;
+          ilState.feedback = '✅ 完美！' + ilState.correctNumber + ' 个 ' + ilState.correctWord.cn + ' = ' + ilState.correctWord.en;
+          ilState.feedbackTimer = 1500;
+          spawnSparkles(x, y, 15);
+          playStationSound();
+        } else {
+          ilState.streak = 0;
+          ilState.wrongIdx = j;
+          ilState.feedback = '❌ 不对哦～正确答案是 ' + ilState.correctWord.en;
+          ilState.feedbackTimer = 1400;
+          ilState.step = 'count';
+          ilState.countAnswer = -1;
+          playTone(200, 0.3, 'sawtooth', 0.06, 80);
+        }
+        break;
+      }
+    }
+  }
+}
 
 // ═══════════════════════════════════════
 //  MAIN LOOP
@@ -1469,6 +2606,42 @@ function gameLoop(time) {
   const dt = Math.min(time - lastTime, 50);
   lastTime = time;
 
+  // Menu mode
+  if (gameMode === MODES.MENU) {
+    ctx.clearRect(0, 0, W, H);
+    drawMenu();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  // Number Learning mode
+  if (gameMode === MODES.NUMBERS) {
+    ctx.clearRect(0, 0, W, H);
+    nlUpdate(dt);
+    nlDraw();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  // Word Learning mode
+  if (gameMode === MODES.WORDS) {
+    ctx.clearRect(0, 0, W, H);
+    wlUpdate(dt);
+    wlDraw();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  // Interactive Learning mode
+  if (gameMode === MODES.INTERACTIVE) {
+    ctx.clearRect(0, 0, W, H);
+    ilUpdate(dt);
+    ilDraw();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  // Original garbage truck game
   updateClouds();
   updateTruck();
   updateBins(dt);
