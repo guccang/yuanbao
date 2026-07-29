@@ -25,3 +25,6 @@ vendor/
 __pycache__/
 *.pyc
 
+# Runtime
+*.log
+*.pid
