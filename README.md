@@ -20,7 +20,7 @@
 node server.js
 ```
 
-然后访问 `http://localhost:8882/`。
+然后访问 `http://localhost:8889/`。
 
 ## 数据说明
 
