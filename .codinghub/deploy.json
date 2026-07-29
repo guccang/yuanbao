@@ -1,0 +1,1 @@
+{"version":1,"compose_file":"compose.yaml","service":"yuanbao","container_port":8887,"health_path":"/","environment":[]}
