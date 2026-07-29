@@ -200,9 +200,9 @@ function streak() {
 
 function nav(active) {
   return `<nav class="nav" aria-label="主导航">
-    <button data-nav="home" class="${active === "home" ? "active" : ""}"><span>⌂</span>今日</button>
-    <button data-nav="progress" class="${active === "progress" ? "active" : ""}"><span>◒</span>成长</button>
-    <button data-nav="profile" class="${active === "profile" ? "active" : ""}"><span>☺</span>我的</button>
+    <button data-nav="home" class="${active === "home" ? "active" : ""}" ${active === "home" ? 'aria-current="page"' : ""}><span>🏡</span>今日</button>
+    <button data-nav="progress" class="${active === "progress" ? "active" : ""}" ${active === "progress" ? 'aria-current="page"' : ""}><span>🌈</span>成长</button>
+    <button data-nav="profile" class="${active === "profile" ? "active" : ""}" ${active === "profile" ? 'aria-current="page"' : ""}><span>🐣</span>我的</button>
   </nav>`;
 }
 
@@ -244,7 +244,7 @@ function renderHome() {
     <section class="hello">
       <p class="eyebrow">第 ${day} 天 · ${new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date())}</p>
       <h1>${state.profile.name}，准备好<br>今天的小冒险了吗？</h1>
-      <p>每天 8–10 分钟，轻松培养数感与英语语感。</p>
+      <p>每天 8–10 分钟，收集知识、快乐长大。</p>
     </section>
     <section class="streak-card">
       <div class="streak-icon">${streak() ? "🔥" : "🌟"}</div>
@@ -255,7 +255,7 @@ function renderHome() {
       <h2>${done ? "今天的课程完成啦！" : lesson.title}</h2>
       <p>${done ? `答对 ${done.correct} 题，获得 ${done.stars} 颗星星。明天有新冒险！` : lesson.subtitle}</p>
       <div class="lesson-progress"><i style="width:${progress}%"></i></div>
-      <button class="primary-btn" id="startLesson">${done ? "再练习一次 ↻" : draft ? "继续今天的课程 →" : "开始今天的课程 →"}</button>
+      <button class="primary-btn" id="startLesson">${done ? "再玩一次 ↻" : draft ? "继续小冒险 →" : "出发去冒险 →"}</button>
     </section>
     <div class="section-heading"><h2>本周打卡</h2><span>${finished} 节课已完成</span></div>
     <div class="week-strip">${renderWeek()}</div>
@@ -277,7 +277,7 @@ function renderOnboarding() {
       <div class="age-picker" role="group" aria-label="选择宝宝年龄">
         ${[3,4,5,6].map(age => `<button type="button" data-age="${age}" class="${age === state.selectedAge ? "active" : ""}">${age} 岁</button>`).join("")}
       </div>
-      <button class="primary-btn green" type="submit">开启成长之旅 →</button>
+      <button class="primary-btn green" type="submit">一起出发吧 →</button>
     </form>
   </main>`;
   document.querySelectorAll("[data-age]").forEach(button => button.addEventListener("click", () => {
