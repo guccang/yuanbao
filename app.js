@@ -51,11 +51,10 @@ const state = {
   activityIndex: 0,
   answers: [],
   feedback: null,
-  isReview: false,
-  db: null
+  isReview: false
 };
 
-function openDatabase() {
+function openLegacyDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
@@ -71,19 +70,59 @@ function openDatabase() {
   });
 }
 
-function dbRequest(store, mode, action) {
+function legacyDbRequest(db, store, action) {
   return new Promise((resolve, reject) => {
-    const transaction = state.db.transaction(store, mode);
+    const transaction = db.transaction(store, "readonly");
     const request = action(transaction.objectStore(store));
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-const getProfile = () => dbRequest("profile", "readonly", store => store.get("main"));
-const saveProfile = profile => dbRequest("profile", "readwrite", store => store.put(profile));
-const getRecords = () => dbRequest("progress", "readonly", store => store.getAll());
-const saveRecord = record => dbRequest("progress", "readwrite", store => store.put(record));
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: options.body ? { "Content-Type": "application/json", ...options.headers } : options.headers
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || `请求失败（${response.status}）`);
+  }
+  return response.json();
+}
+
+const saveProfile = profile => api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
+async function saveRecord(record) {
+  await api("/api/progress", { method: "PUT", body: JSON.stringify(record) });
+  const index = state.records.findIndex(item => item.date === record.date);
+  if (index === -1) state.records.push(record);
+  else state.records[index] = record;
+}
+
+async function loadLegacyState() {
+  if (!("indexedDB" in window)) return { profile: null, records: [] };
+  const db = await openLegacyDatabase();
+  try {
+    const profile = await legacyDbRequest(db, "profile", store => store.get("main"));
+    const records = await legacyDbRequest(db, "progress", store => store.getAll());
+    return { profile: profile || null, records: records || [] };
+  } finally {
+    db.close();
+  }
+}
+
+async function migrateLegacyState() {
+  try {
+    const legacy = await loadLegacyState();
+    if (!legacy.profile) return legacy;
+    await saveProfile(legacy.profile);
+    for (const record of legacy.records) await saveRecord(record);
+    return legacy;
+  } catch (error) {
+    console.warn("无法读取旧版浏览器数据，将使用服务端存储。", error);
+    return { profile: null, records: [] };
+  }
+}
 
 function localDate(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60000;
@@ -364,7 +403,6 @@ async function answerQuestion(button, activity) {
       activityIndex: state.activityIndex + 1, answers: state.answers,
       updatedAt: new Date().toISOString()
     });
-    state.records = await getRecords();
   }
   const sheet = document.createElement("div");
   sheet.className = "feedback-sheet";
@@ -390,7 +428,6 @@ async function nextActivity() {
     };
     if (!state.isReview) {
       await saveRecord(record);
-      state.records = await getRecords();
     }
     state.view = "complete";
   }
@@ -470,7 +507,7 @@ function renderProfile() {
       <div class="section-heading"><h2>课程信息</h2></div>
       <div class="setting-row"><div><strong>每日课程</strong><br><span>数学 3 题 + 英语 3 题</span></div><b>约 8 分钟</b></div>
       <div class="setting-row"><div><strong>课程难度</strong><br><span>依据年龄自动调整</span></div><b>${state.profile.age} 岁阶段</b></div>
-      <div class="setting-row"><div><strong>数据保存</strong><br><span>安全保存在当前设备</span></div><b>已开启</b></div>
+      <div class="setting-row"><div><strong>数据保存</strong><br><span>安全保存在应用服务</span></div><b>已开启</b></div>
       <button class="secondary-btn" id="editProfile">修改宝宝资料</button>
       <button class="danger-btn" id="resetData">清除全部学习数据</button>
     </section>
@@ -493,12 +530,8 @@ async function editProfile() {
 
 async function resetData() {
   if (!confirm("确定清除宝宝资料和全部学习记录吗？此操作无法撤销。")) return;
-  state.db.close();
-  await new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB_NAME);
-    request.onsuccess = resolve;
-    request.onerror = () => reject(request.error);
-  });
+  await api("/api/state", { method: "DELETE" });
+  if ("indexedDB" in window) indexedDB.deleteDatabase(DB_NAME);
   location.reload();
 }
 
@@ -529,9 +562,10 @@ function render() {
 
 async function init() {
   try {
-    state.db = await openDatabase();
-    state.profile = await getProfile();
-    state.records = await getRecords();
+    let saved = await api("/api/state");
+    if (!saved.profile) saved = await migrateLegacyState();
+    state.profile = saved.profile;
+    state.records = saved.records;
     if (state.profile) state.selectedAge = state.profile.age;
     render();
   } catch (error) {

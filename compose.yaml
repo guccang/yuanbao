@@ -5,8 +5,11 @@ services:
       dockerfile: Dockerfile
     environment:
       PORT: "${CODINGHUB_CONTAINER_PORT}"
+      DATA_FILE: "/data/yuanbao.json"
     ports:
       - "${CODINGHUB_HOST_PORT}:${CODINGHUB_CONTAINER_PORT}"
+    volumes:
+      - yuanbao-data:/data
     restart: unless-stopped
     healthcheck:
       test:
@@ -18,3 +21,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+
+volumes:
+  yuanbao-data:
