@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "project_type": "原生 HTML/CSS/JavaScript 静态站点（Node.js 内置 HTTP 服务）",
+  "validation_commands": [
+    "node --check app.js && node --check server.js",
+    "PORT=18887 node server.js >/tmp/yuanbao-validation.log 2>&1 & server_pid=$!; trap 'kill \"$server_pid\" 2>/dev/null || true; wait \"$server_pid\" 2>/dev/null || true' EXIT; node -e \"setTimeout(() => Promise.all(['/','/styles.css','/app.js'].map(path => fetch('http://127.0.0.1:18887' + path).then(async response => ({ path, ok: response.ok, body: await response.text() })))).then(results => { if (results.some(result => !result.ok) || !results[0].body.includes('id=\\\"app\\\"') || !results[1].body.includes(':root') || !results[2].body.includes('DB_NAME')) process.exit(1); }).catch(error => { console.error(error); process.exit(1); }), 500);\""
+  ],
+  "summary": "项目没有 package.json、依赖锁文件、构建工具或测试框架；README 声明其为无第三方依赖的纯静态站点，server.js 仅使用 Node.js 内置 http/fs/path 模块，现有生产 Dockerfile 也采用 Node 22 Alpine。因此开发镜像选择轻量的 node:22-alpine，不执行依赖安装。验证先对浏览器脚本和服务端脚本做语法检查，再启动本地服务并检查首页、CSS、JavaScript 三个核心资源及关键内容。需人工确认：IndexedDB 持久化、Web Speech 朗读、触屏交互和视觉效果仍需在真实浏览器中验收；冒烟测试固定占用容器内 18887 端口。"
+}
