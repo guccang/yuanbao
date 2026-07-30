@@ -492,9 +492,44 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transition: transform .15s, box-shadow .15s, border-color .15s;
 }
 .answer:hover:not(:disabled) { border-color: #d8cbee; transform: translateY(-2px); box-shadow: 0 7px 0 #ddd4ea, var(--shadow-soft); }
-.answer.correct { border-color: var(--green); color: var(--green-dark); background: var(--green-soft); box-shadow: 0 5px 0 #a6d8c6; }
+.answer.correct { border-color: var(--green); color: var(--green-dark); background: var(--green-soft); box-shadow: 0 5px 0 #a6d8c6; animation: correct-pop .52s cubic-bezier(.18, .9, .25, 1.4); }
 .answer.wrong { border-color: #e77a77; color: #a33835; background: #ffeded; box-shadow: 0 5px 0 #efc4c2; animation: shake .3s; }
 .answer:disabled { cursor: default; }
+
+.prompt-celebrate { animation: prompt-glow .72s ease-out; }
+.prompt-try-again { animation: prompt-nudge .46s ease-out; }
+.answer-effect {
+  position: fixed;
+  z-index: 35;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.answer-effect i {
+  position: absolute;
+  display: block;
+  font-style: normal;
+  user-select: none;
+}
+.correct-effect {
+  animation: effect-fade 1.05s ease-out forwards;
+}
+.correct-effect i {
+  left: calc(50% + (var(--i) - 4.5) * 4%);
+  top: 46%;
+  color: var(--yellow);
+  font-size: clamp(19px, 6vw, 33px);
+  text-shadow: 0 3px 10px rgba(224, 166, 51, .28);
+  animation: star-burst .82s cubic-bezier(.16, .8, .3, 1) forwards;
+  animation-delay: calc(var(--i) * .018s);
+}
+.correct-effect i:nth-child(3n) { color: var(--pink); }
+.correct-effect i:nth-child(3n + 2) { color: var(--blue); }
+.wrong-effect { animation: effect-fade .82s ease-out forwards; }
+.wrong-effect i { top: 43%; left: 50%; font-size: clamp(24px, 8vw, 39px); opacity: 0; animation: thought-float .68s ease-out forwards; }
+.wrong-effect i:nth-child(1) { margin-left: -47px; animation-delay: .02s; }
+.wrong-effect i:nth-child(2) { margin-left: 14px; color: var(--pink); animation-delay: .1s; }
+.wrong-effect i:nth-child(3) { margin-left: 48px; animation-delay: .16s; }
 
 .feedback-sheet {
   position: fixed;
@@ -508,11 +543,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-radius: 30px 30px 0 0;
   background: white;
   box-shadow: 0 -12px 40px rgba(49,74,64,.14);
+  animation: feedback-rise .36s cubic-bezier(.2, .85, .35, 1.1);
 }
+.feedback-sheet.feedback-correct { border-top-color: #b9e8d5; background: linear-gradient(135deg, #ffffff, #effcf5); }
+.feedback-sheet.feedback-wrong { border-top-color: #ffd3cf; background: linear-gradient(135deg, #ffffff, #fff7f4); }
 .feedback-inner { display: flex; width: min(100%, 724px); margin: auto; align-items: center; gap: 14px; }
 .feedback-face { font-size: 39px; }
 .feedback-copy { flex: 1; }
 .feedback-copy strong { display: block; color: var(--green-dark); font-size: 19px; }
+.feedback-wrong .feedback-copy strong { color: #b75a50; }
 .feedback-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 13px; }
 .feedback-sheet .primary-btn { width: auto; min-width: 120px; }
 
@@ -599,6 +638,45 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   25% { transform: translateX(-5px); }
   50% { transform: translateX(5px); }
   75% { transform: translateX(-3px); }
+}
+
+@keyframes correct-pop {
+  0% { transform: scale(1); }
+  45% { transform: translateY(-5px) scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+@keyframes prompt-glow {
+  0%, 100% { transform: scale(1); }
+  42% { transform: scale(1.025); box-shadow: 0 0 0 8px rgba(85,185,139,.14), 0 16px 38px rgba(58,157,112,.18); }
+}
+
+@keyframes prompt-nudge {
+  25% { transform: translateX(-6px) rotate(-.5deg); }
+  55% { transform: translateX(5px) rotate(.5deg); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes star-burst {
+  0% { opacity: 0; transform: translate(-50%, 14px) scale(.25) rotate(-20deg); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + (var(--i) - 4.5) * 16px), -102px) scale(1.12) rotate(30deg); }
+}
+
+@keyframes thought-float {
+  0% { opacity: 0; transform: translateY(18px) scale(.6); }
+  35% { opacity: .85; }
+  100% { opacity: 0; transform: translateY(-48px) scale(1.05); }
+}
+
+@keyframes effect-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes feedback-rise {
+  from { transform: translateY(105%); }
+  to { transform: translateY(0); }
 }
 
 @media (min-width: 620px) {

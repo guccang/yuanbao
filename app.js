@@ -4,6 +4,7 @@ const DB_NAME = "yuanbao-learning";
 const DB_VERSION = 1;
 const DAY_MS = 86400000;
 const app = document.querySelector("#app");
+let feedbackAudioContext;
 
 const MATH_THEMES = [
   { name: "果园数一数", emoji: "🍎", items: ["🍎", "🍐", "🍊", "🍓"] },
@@ -386,6 +387,54 @@ function renderLesson() {
   if (activity.subject === "english" && activity.visual === "🔊") setTimeout(() => speak(activity.word.en), 250);
 }
 
+function playFeedbackSound(correct) {
+  if (!(window.AudioContext || window.webkitAudioContext)) return;
+  try {
+    feedbackAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+    const context = feedbackAudioContext;
+    const start = context.currentTime;
+    const notes = correct ? [523.25, 659.25, 783.99] : [293.66, 220];
+    const duration = correct ? .14 : .18;
+    if (context.state === "suspended") context.resume();
+    notes.forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const noteStart = start + index * (correct ? .11 : .13);
+      oscillator.type = correct ? "sine" : "triangle";
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+      gain.gain.setValueAtTime(.0001, noteStart);
+      gain.gain.exponentialRampToValueAtTime(correct ? .12 : .09, noteStart + .015);
+      gain.gain.exponentialRampToValueAtTime(.0001, noteStart + duration);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + duration + .02);
+    });
+  } catch (error) {
+    // 音效是增强体验，浏览器禁止播放时不影响答题流程。
+    console.debug("无法播放反馈音效", error);
+  }
+}
+
+function showAnswerEffect(correct) {
+  const activity = document.querySelector(".activity");
+  const prompt = document.querySelector(".prompt-card");
+  activity?.classList.add(correct ? "answer-is-correct" : "answer-is-wrong");
+  prompt?.classList.add(correct ? "prompt-celebrate" : "prompt-try-again");
+
+  const effect = document.createElement("div");
+  effect.className = `answer-effect ${correct ? "correct-effect" : "wrong-effect"}`;
+  effect.setAttribute("aria-hidden", "true");
+  effect.innerHTML = correct
+    ? Array.from({ length: 10 }, (_, index) => `<i style="--i:${index}">${["✦", "⭐", "●"][index % 3]}</i>`).join("")
+    : "<i>☁</i><i>↗</i><i>💭</i>";
+  document.body.appendChild(effect);
+  effect.addEventListener("animationend", event => {
+    if (event.target === effect) effect.remove();
+  });
+  window.setTimeout(() => effect.remove(), 1200);
+  playFeedbackSound(correct);
+}
+
 async function answerQuestion(button, activity) {
   if (state.feedback) return;
   const chosen = button.dataset.answer;
@@ -395,17 +444,11 @@ async function answerQuestion(button, activity) {
     if (item.dataset.answer.toLowerCase() === String(activity.answer).toLowerCase()) item.classList.add("correct");
   });
   if (!correct) button.classList.add("wrong");
+  showAnswerEffect(correct);
   state.answers[state.activityIndex] = { subject: activity.subject, correct, chosen, answer: activity.answer };
   state.feedback = { correct, answer: activity.answer };
-  if (!state.isReview) {
-    await saveRecord({
-      date: localDate(), day: state.lesson.day, completed: false,
-      activityIndex: state.activityIndex + 1, answers: state.answers,
-      updatedAt: new Date().toISOString()
-    });
-  }
   const sheet = document.createElement("div");
-  sheet.className = "feedback-sheet";
+  sheet.className = `feedback-sheet ${correct ? "feedback-correct" : "feedback-wrong"}`;
   sheet.innerHTML = `<div class="feedback-inner">
     <div class="feedback-face">${correct ? "🌟" : "💪"}</div>
     <div class="feedback-copy"><strong>${correct ? "答对啦，真棒！" : "差一点，也很棒！"}</strong><span>${correct ? "你的小脑袋又变聪明了一点" : `正确答案是 ${activity.answer}`}</span></div>
@@ -413,6 +456,18 @@ async function answerQuestion(button, activity) {
   </div>`;
   document.body.appendChild(sheet);
   document.querySelector("#nextActivity").addEventListener("click", nextActivity);
+  if (!state.isReview) {
+    try {
+      await saveRecord({
+        date: localDate(), day: state.lesson.day, completed: false,
+        activityIndex: state.activityIndex + 1, answers: state.answers,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(error);
+      toast("学习进度暂未保存，请稍后重试");
+    }
+  }
 }
 
 async function nextActivity() {
