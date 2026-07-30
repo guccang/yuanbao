@@ -9,14 +9,14 @@ set -eu
 case "${1:-}" in
   deploy)
     docker compose \
-      -p "$CODINGHUB_COMPOSE_PROJECT" \
-      -f "$CODINGHUB_COMPOSE_FILE" \
+      --project-name "$CODINGHUB_COMPOSE_PROJECT" \
+      --file "$CODINGHUB_COMPOSE_FILE" \
       up -d --build "$CODINGHUB_SERVICE"
     ;;
   stop)
     docker compose \
-      -p "$CODINGHUB_COMPOSE_PROJECT" \
-      -f "$CODINGHUB_COMPOSE_FILE" \
+      --project-name "$CODINGHUB_COMPOSE_PROJECT" \
+      --file "$CODINGHUB_COMPOSE_FILE" \
       down
     ;;
   *)
