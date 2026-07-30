@@ -1,6 +1,6 @@
 # 架构说明
 
-本文说明稳定的模块边界与数据契约；运行时的先后顺序见[运行流程](./flows.md)，操作命令见[开发指南](./development.md)。
+本文描述稳定的模块边界与数据契约；运行时先后顺序请见[运行流程](./flows.md)，操作与验证请见[开发指南](./development.md)。
 
 ## 总体架构
 
@@ -8,46 +8,47 @@
 flowchart LR
     User[儿童或监护人] --> Browser[浏览器]
     Browser --> HTML[index.html]
-    HTML --> UI[app.js 客户端应用]
+    HTML --> Client[app.js]
     HTML --> CSS[styles.css]
-    UI --> Speech[Web Speech API]
-    UI --> Legacy[旧 IndexedDB]
-    UI -->|HTTP JSON| API[server.js API]
-    Browser -->|静态资源请求| Static[server.js 静态文件服务]
-    Static --> Files[根目录静态文件]
+    Client --> Speech[Web Speech API]
+    Client --> Legacy[旧 IndexedDB]
+    Client -->|HTTP JSON| API[server.js API]
+    Browser -->|静态资源请求| Static[server.js 静态服务]
     API --> Memory[进程内 persistedState]
-    Memory --> Queue[串行 saveQueue]
-    Queue --> JSON[DATA_FILE JSON 文件]
+    Memory --> Queue[saveQueue]
+    Queue --> File[DATA_FILE JSON 文件]
 ```
 
-图中边界来自 [`index.html`](../../index.html) 的资源加载、[`app.js`](../../app.js) 的 `api`/`migrateLegacyState`/`speak`，以及 [`server.js`](../../server.js) 的请求分派和 `persistState`。
+资源加载、浏览器能力和 API 调用来自 [`index.html`](../../index.html) 与 [`app.js`](../../app.js)；服务端分派与文件写入来自 [`server.js`](../../server.js)。
 
 ## 模块边界与依赖方向
 
-| 模块 | 对外职责 | 允许依赖 | 不负责 |
+| 模块 | 对外职责 | 直接依赖 | 不负责 |
 | --- | --- | --- | --- |
-| HTML 壳 | 提供 `#app`、`#toast` 和静态资源入口 | `styles.css`、`app.js` | 业务状态与路由 |
-| 客户端应用 | 生成课程、管理当前视图、渲染交互、计算统计、调用 API | DOM、Fetch、Web Speech、旧 IndexedDB | 权威持久化、静态文件传输 |
-| HTTP 服务 | 静态资源分发、API 路由、最小输入校验 | Node.js 内置模块、文件系统 | 课程生成与页面渲染 |
-| JSON 存储 | 保存一份应用状态 | 本地文件系统 | 多用户隔离、查询、事务数据库能力 |
-| 部署层 | 构建镜像、注入端口和数据路径、挂载卷、健康检查 | Docker/Compose | 业务逻辑 |
+| HTML 壳 | 提供挂载节点并加载资源 | CSS、客户端脚本 | 业务状态与 API |
+| 客户端应用 | 课程生成、状态管理、页面渲染、统计、数据调用 | DOM、Fetch、Web Speech、旧 IndexedDB | 权威持久化、静态资源传输 |
+| HTTP 服务 | 静态文件分发、API 路由、最小输入校验 | Node.js 内置模块、文件系统 | 课程生成、DOM 渲染 |
+| JSON 存储 | 保存一份完整应用状态 | 本地文件系统 | 多用户隔离、查询、数据库事务 |
+| 部署层 | 构建镜像、配置端口与数据卷、健康检查 | Docker / Compose | 业务逻辑 |
 
-依赖方向是浏览器端单向调用服务端 API，服务端再单向写文件；服务端不导入客户端代码。部署层包裹运行时而不被业务代码引用。依据分别为 [`app.js`](../../app.js)、[`server.js`](../../server.js)、[`Dockerfile`](../../Dockerfile) 和 [`compose.yaml`](../../compose.yaml)。
+浏览器单向调用服务端 API，服务端单向写入文件；服务端不加载客户端脚本，业务代码也不引用 Docker 配置。这些关系可由 [`app.js`](../../app.js)、[`server.js`](../../server.js)、[`Dockerfile`](../../Dockerfile)、[`compose.yaml`](../../compose.yaml) 直接验证。
 
-## 客户端内部边界
+## 客户端内部职责
 
-[`app.js`](../../app.js) 是单文件模块，可按职责理解为四组：
+`app.js` 是当前唯一的客户端业务文件，可按下列职责维护；这些分组不是实际的独立模块。
 
-- 内容与生成：`MATH_THEMES`、`WORDS`、`seeded`、`makeLesson`。种子为学习天数与年龄的组合，同一天、同年龄会得到相同课程。
-- 状态与派生：`state`、`dayNumber`、`completedToday`、`todayDraft`、`streak`。
-- 视图与交互：各 `render*`、`answerQuestion`、`nextActivity`、`bindNavigation`。
-- 数据适配：`api`、`saveProfile`、`saveRecord` 以及旧 IndexedDB 读取/迁移函数。
+| 分组 | 主要成员 | 作用 |
+| --- | --- | --- |
+| 内容与生成 | `MATH_THEMES`、`WORDS`、`seeded`、`makeLesson` | 按天数与年龄确定性生成课程 |
+| 状态与派生 | `state`、`dayNumber`、`todayDraft`、`streak` | 管理视图和从记录计算状态 |
+| 视图与交互 | `render*`、`answerQuestion`、`nextActivity` | 用模板字符串渲染并处理点击 |
+| 数据适配 | `api`、`saveProfile`、`saveRecord`、迁移函数 | 访问服务端及读取旧 IndexedDB |
 
-这些只是当前代码中的职责分组，并非独立文件或可导入模块；若未来拆分，需要先建立模块加载或打包方案。
+上述成员均见 [`app.js`](../../app.js)。若未来拆分文件，是否引入模块加载或打包工具属于**待确认**，因为仓库目前没有对应配置。
 
 ## 核心数据结构
 
-以下结构依据 [`app.js`](../../app.js) 的写入点和 [`server.js`](../../server.js) 的读取/校验整理。项目没有 JSON Schema 或 TypeScript 类型定义。
+项目没有 JSON Schema 或 TypeScript 类型定义；下图依据客户端写入点与服务端读取/校验逻辑整理，见 [`app.js`](../../app.js)、[`server.js`](../../server.js)。
 
 ```mermaid
 classDiagram
@@ -83,15 +84,14 @@ classDiagram
     class Lesson {
         number day
         number age
+        Activity[] activities
         string title
         string subtitle
-        Activity[] activities
     }
     class Activity {
         string subject
         string title
         string hint
-        string visual
         string answer
         string[] options
     }
@@ -101,29 +101,24 @@ classDiagram
     Lesson "1" o-- "6" Activity
 ```
 
-字段存在两种记录形态：
-
-| 形态 | 必需于当前写入逻辑的字段 | 产生位置 |
+| 记录形态 | 当前写入字段 | 产生处 |
 | --- | --- | --- |
 | 未完成断点 | `date`、`day`、`completed: false`、`activityIndex`、`answers`、`updatedAt` | `answerQuestion` |
 | 已完成汇总 | `date`、`day`、`completed: true`、`correct`、`total`、`stars`、`answers`、`completedAt` | `nextActivity` |
-
-服务端以 `date` 为记录唯一键，`PUT /api/progress` 会插入或覆盖同日记录；资料固定要求 `id === "main"` 且年龄属于 3、4、5、6。服务端对进度记录只校验日期格式，其余字段契约由客户端维持，见 [`server.js`](../../server.js) 的 `handleApi`。
 
 ## API 与持久化边界
 
 | 方法与路径 | 作用 | 服务端校验 |
 | --- | --- | --- |
 | `GET /api/state` | 返回完整状态 | 无 |
-| `PUT /api/profile` | 新建或覆盖资料 | `id`、名称类型、年龄集合 |
-| `PUT /api/progress` | 按日期新建或覆盖进度 | `date` 为 `YYYY-MM-DD` 形式 |
-| `DELETE /api/state` | 清空资料与记录 | 无 |
+| `PUT /api/profile` | 新建或覆盖资料 | `id === "main"`、名称为字符串、年龄为 3–6 |
+| `PUT /api/progress` | 按日期新建或覆盖进度 | `date` 符合 `YYYY-MM-DD` |
+| `DELETE /api/state` | 清空资料和记录 | 无 |
 
-[`server.js`](../../server.js) 在启动时同步读取数据文件；写入通过 `saveQueue` 串行化，先写同目录 `.tmp` 文件再重命名。状态仍以进程内 `persistedState` 为请求期间的权威副本，因此当前设计是单进程、单数据文件、单资料模型。
+服务端以 `date` 为进度记录键。启动时读取文件，写入时将完整内存快照写到同目录临时文件后重命名，并用 `saveQueue` 串行化同一进程内写入。因此它是单进程、单数据文件、单资料模型，见 [`server.js`](../../server.js)。
 
 ## 相关文档
 
-- 项目定位与入口：[项目概览](./overview.md)
-- 关键请求和状态转换：[运行流程](./flows.md)
-- 约束、验证与已知风险：[开发指南](./development.md)
-
+- [项目概览](./overview.md)：定位、技术栈、目录和入口。
+- [运行流程](./flows.md)：请求、状态变化与持久化时序。
+- [开发指南](./development.md)：验证方式与架构风险。
