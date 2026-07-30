@@ -2,9 +2,13 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY index.html app.js styles.css server.js ./
-
 ENV NODE_ENV=production
+
+COPY --chown=node:node index.html app.js styles.css server.js ./
+
+RUN mkdir -p /data && chown node:node /data
+
+USER node
 
 EXPOSE 8887
 

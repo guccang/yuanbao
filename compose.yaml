@@ -1,8 +1,6 @@
 services:
   yuanbao:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: "${CODINGHUB_IMAGE}"
     environment:
       PORT: "${CODINGHUB_CONTAINER_PORT}"
       DATA_FILE: "/data/yuanbao.json"

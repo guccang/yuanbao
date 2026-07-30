@@ -1,1 +1,1 @@
-{"version":1,"compose_file":"compose.yaml","service":"yuanbao","container_port":8887,"health_path":"/","environment":[]}
+{"version":2,"runtime":"node","context":".","dockerfile":"Dockerfile","estimated_image_size_mb":58,"compose_file":"compose.yaml","service":"yuanbao","container_port":8887,"health_path":"/","environment":[]}

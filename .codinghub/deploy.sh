@@ -8,10 +8,12 @@ set -eu
 
 case "${1:-}" in
   deploy)
+    : "${CODINGHUB_IMAGE:?CODINGHUB_IMAGE is required}"
+    docker image inspect "$CODINGHUB_IMAGE" >/dev/null
     docker compose \
       --project-name "$CODINGHUB_COMPOSE_PROJECT" \
       --file "$CODINGHUB_COMPOSE_FILE" \
-      up -d --build "$CODINGHUB_SERVICE"
+      up -d --no-build --pull never "$CODINGHUB_SERVICE"
     ;;
   stop)
     docker compose \
