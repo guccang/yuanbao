@@ -11,8 +11,8 @@ flowchart LR
     HTML --> Client[app.js]
     HTML --> CSS[styles.css]
     Client --> Speech[Web Speech API]
-    Client --> Audio[Web Audio API]
-    Client --> Vibration[振动能力]
+    Client --> Audio[Web Audio API 合成音效]
+    Client --> Vibration[Vibration API]
     Client --> Legacy[旧 IndexedDB]
     Client -->|HTTP JSON| API[server.js API]
     Browser -->|静态资源请求| Static[server.js 静态服务]
@@ -29,7 +29,7 @@ flowchart LR
 | 模块 | 对外职责 | 直接依赖 | 不负责 |
 | --- | --- | --- | --- |
 | HTML 壳 | 提供挂载节点并加载资源 | CSS、客户端脚本 | 业务状态与 API |
-| 客户端应用 | 课程生成、状态管理、页面渲染、统计、数据调用与答题反馈 | DOM、Fetch、Web Speech、Web Audio、振动能力、旧 IndexedDB | 权威持久化、静态资源传输 |
+| 客户端应用 | 课程生成、状态管理、页面渲染、统计、数据调用、答题反馈、庆祝特效与合成音效 | DOM、Fetch、Web Speech、Web Audio、Vibration、旧 IndexedDB | 权威持久化、静态资源传输 |
 | HTTP 服务 | 静态文件分发、API 路由、最小输入校验 | Node.js 内置模块、文件系统 | 课程生成、DOM 渲染 |
 | JSON 存储 | 保存一份完整应用状态 | 本地文件系统 | 多用户隔离、查询、数据库事务 |
 | 部署层 | 构建镜像、配置端口与数据卷、健康检查 | Docker / Compose | 业务逻辑 |
@@ -44,12 +44,25 @@ flowchart LR
 
 | 分组 | 主要成员 | 作用 |
 | --- | --- | --- |
-| 内容与生成 | `MATH_THEMES`、`WORDS`、`seeded`、`makeLesson` | 按天数与年龄确定性生成课程 |
+| 内容与生成 | `MATH_THEMES`、`WORDS`、`SUCCESS_SOUNDS`、`seeded`、`makeLesson` | 按天数与年龄确定性生成课程，以及随机选择庆祝主题 |
 | 状态与派生 | `state`、`dayNumber`、`todayDraft`、`streak` | 管理视图和从记录计算状态 |
-| 视图与交互 | `render*`、`answerQuestion`、`nextActivity` | 用模板字符串渲染并处理点击 |
+| 视图与交互 | `render*`、`answerQuestion`、`nextActivity`、`exitLesson` | 用模板字符串渲染并处理点击 |
+| 反馈与庆祝 | `playFeedbackSound`、`playVehicleSound`、`audioTone`、`celebrateWithParticles`、`showSuccessBadge`、`showAnswerEffect`、`speak` | 合成音效、粒子动画、庆祝徽章和语音朗读 |
 | 数据适配 | `api`、`saveProfile`、`saveRecord`、迁移函数 | 访问服务端及读取旧 IndexedDB |
 
 上述成员均见 [`app.js`](../../app.js)。若未来拆分文件，是否引入模块加载或打包工具属于**待确认**，因为仓库目前没有对应配置。
+
+## 庆祝反馈系统
+
+答对题目时，`showAnswerEffect` 协调三级反馈，全部通过 Web Audio API 合成，无需外部音频文件（见 [`app.js`](../../app.js)）：
+
+| 反馈层级 | 实现函数 | 效果 |
+| --- | --- | --- |
+| 粒子特效 | `celebrateWithParticles("correct", 30)` | 30 个彩带/星星/心形粒子从中心向四周扩散，带随机颜色和延迟 |
+| 庆祝徽章 | `showSuccessBadge(sound)` | 顶部弹出弹跳徽章，显示车辆 emoji、名称和祝贺文案 |
+| 合成音效 | `playFeedbackSound("correct", vehicle)` | 上行音阶（C₅-E₅-G₅）后接随机车辆主题音效（火车/消防车/警车/校车） |
+
+`SUCCESS_SOUNDS` 数组定义了四种车辆主题，每次答对随机选取一种。课程完成时调用 `playFeedbackSound("complete")` 播放四音阶（C₅-E₅-G₅-C₆）和 `celebrateWithParticles("complete", 24)` 全屏庆祝。`completionCelebrated` 标志防止重复渲染时再次触发特效。
 
 ## 核心数据结构
 
@@ -86,6 +99,18 @@ classDiagram
         string chosen
         string answer
     }
+    class ClientState {
+        Profile profile
+        ProgressRecord[] records
+        string view
+        number selectedAge
+        Lesson lesson
+        number activityIndex
+        Answer[] answers
+        Feedback feedback
+        boolean isReview
+        boolean completionCelebrated
+    }
     class Lesson {
         number day
         number age
@@ -111,6 +136,9 @@ classDiagram
     PersistedState "1" o-- "0..1" Profile
     PersistedState "1" o-- "0..*" ProgressRecord
     ProgressRecord "1" o-- "0..*" Answer
+    ClientState "1" o-- "0..1" Profile
+    ClientState "1" o-- "0..*" ProgressRecord
+    ClientState "1" o-- "0..1" Lesson
     Lesson "1" o-- "6" Activity
     Activity "0..1" --> "1" Word
     Activity "0..1" --> "0..*" Word
@@ -121,7 +149,7 @@ classDiagram
 | 未完成断点 | `date`、`day`、`completed: false`、`activityIndex`、`answers`、`updatedAt` | `answerQuestion` |
 | 已完成汇总 | `date`、`day`、`completed: true`、`correct`、`total`、`stars`、`answers`、`completedAt` | `nextActivity` |
 
-`Activity.options` 的元素在数学活动中是数字、在英语活动中是字符串；带图片选项的英语活动另有 `word` 与 `pictureOptions`。这两类课程对象仅在客户端内存中生成，并不写入服务端状态，见 [`app.js`](../../app.js) 的 `makeLesson`、`renderAnswers`。
+`Activity.options` 的元素在数学活动中是数字、在英语活动中是字符串；带图片选项的英语活动另有 `word` 与 `pictureOptions`。`ClientState` 中的 `lesson`、`activityIndex`、`answers`、`feedback`、`isReview` 和 `completionCelebrated` 仅在客户端内存中存在，不写入服务端持久化状态，见 [`app.js`](../../app.js)。
 
 ## API 与持久化边界
 

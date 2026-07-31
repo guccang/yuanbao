@@ -4,7 +4,7 @@
 
 ## 启动与初始化
 
-服务端启动时读取 `SOURCE_DIR`、`PORT`、`DATA_FILE`，调用 `loadState()` 尝试读取 JSON；文件不存在或读取/解析失败时使用空状态。浏览器加载页面后，`app.js` 的 `init()` 请求状态并选择首页或首次建档页。依据为 [`server.js`](../../server.js) 和 [`app.js`](../../app.js)。
+服务端启动时读取 `SOURCE_DIR`、`PORT`、`DATA_FILE`，调用 `loadState()` 尝试读取 JSON；文件不存在或读取/解析失败时使用空状态。浏览器加载页面后，`app.js` 的 `init()` 请求状态并选择首页或首次建档页。首次建档页的宝宝小名输入框预填默认值 `"元宝"`（见 [`app.js`](../../app.js) 的 `renderOnboarding`）。依据为 [`server.js`](../../server.js) 和 [`app.js`](../../app.js)。
 
 ```mermaid
 sequenceDiagram
@@ -37,12 +37,12 @@ sequenceDiagram
             end
             A->>A: 渲染首页
         else 无旧资料
-            A->>A: 渲染首次建档页
+            A->>A: 渲染首次建档页（小名默认值"元宝"）
         end
     end
 ```
 
-旧 IndexedDB 迁移只会在服务端没有 `profile` 时触发；迁移成功后不会自动删除旧数据库。仅用户执行“清除全部学习数据”时，客户端会删除该 IndexedDB，见 [`app.js`](../../app.js) 的 `init`、`migrateLegacyState`、`resetData`。
+旧 IndexedDB 迁移只会在服务端没有 `profile` 时触发；迁移成功后不会自动删除旧数据库。仅用户执行"清除全部学习数据"时，客户端会删除该 IndexedDB，见 [`app.js`](../../app.js) 的 `init`、`migrateLegacyState`、`resetData`。
 
 ## 建档与每日学习
 
@@ -67,11 +67,60 @@ flowchart TD
     Last -->|是| Summary[计算正确数与星星]
     Summary --> WriteDone{是否重玩}
     WriteDone -->|否| SaveDone[PUT /api/progress 覆盖同日断点]
-    WriteDone -->|是| Complete[完成页]
+    WriteDone -->|是| Complete[完成页 + 庆祝特效]
     SaveDone --> Complete
 ```
 
 首次作答会禁用选项并显示正确答案。非重玩模式每题立即保存断点；第六题后以 `max(1, round(correct / 2))` 计算星星，并覆盖同日记录。重玩只显示反馈，不改写既有成绩，见 [`app.js`](../../app.js) 的 `startLesson`、`answerQuestion`、`nextActivity`。
+
+## 答题反馈与庆祝流程
+
+每次答题后，客户端触发多级反馈；所有音效通过 Web Audio API 合成，不依赖外部音频文件。答对时随机选择车辆主题（火车/消防车/警车/校车），见 [`app.js`](../../app.js) 的 `SUCCESS_SOUNDS`、`showAnswerEffect`、`playFeedbackSound`、`playVehicleSound`。
+
+```mermaid
+sequenceDiagram
+    participant U as 用户点击答案
+    participant A as app.js answerQuestion
+    participant D as DOM
+    participant W as Web Audio API
+    participant V as Vibration API
+    participant S as server.js
+
+    U->>A: 点击选项按钮
+    A->>A: 判定正确/错误
+    A->>D: 禁用所有选项，高亮正确答案
+    alt 答对
+        A->>A: 随机选取 SUCCESS_SOUNDS 主题
+        A->>D: celebrateWithParticles("correct", 30)
+        A->>D: showSuccessBadge(sound)
+        A->>W: playFeedbackSound("correct", vehicle)
+        A->>V: vibrate(35)
+    else 答错
+        A->>D: 错误按钮添加 .wrong 样式
+    end
+    A->>D: 显示反馈面板（正确/错误文案）
+    A->>S: PUT /api/progress 保存断点（非重玩模式）
+    U->>A: 点击"继续"
+    A->>A: nextActivity 推进到下一活动
+```
+
+课程完成时，`renderComplete` 在首次渲染时触发完成庆祝，`completionCelebrated` 标志防止重复：
+
+```mermaid
+flowchart TD
+    Next[第六题点击继续] --> Calc[计算正确数 correct 与星星数 stars]
+    Calc --> IsReview{是否重玩}
+    IsReview -->|否| Save[PUT /api/progress completed=true]
+    IsReview -->|是| Render[渲染完成页]
+    Save --> Render
+    Render --> FirstTime{completionCelebrated 是否为 false}
+    FirstTime -->|是| Celebrate[celebrateWithParticles 24 粒子]
+    Celebrate --> Sound[playFeedbackSound complete 四音阶]
+    Sound --> Vibrate[vibrate 三段式振动]
+    Vibrate --> SetFlag[completionCelebrated = true]
+    FirstTime -->|否| Done[完成]
+    SetFlag --> Done
+```
 
 英语发音使用浏览器的 `speechSynthesis`、`en-US` 语言；不支持时只显示提示，学习可继续。答对和完成课程还会尽力调用 Web Audio API 与 `navigator.vibrate` 提供反馈；这些能力不可用或播放失败时不会中断答题流程，见 [`app.js`](../../app.js) 的 `speak`、`playFeedbackSound`、`showAnswerEffect`、`renderComplete`。
 

@@ -32,6 +32,8 @@ docker run --rm -p 8887:8887 -v yuanbao-dev-data:/data \
 
 镜像仅复制 `index.html`、`app.js`、`styles.css`、`server.js`，并以非 root 的 `node` 用户运行，见 [`Dockerfile`](../../Dockerfile)。[`compose.yaml`](../../compose.yaml) 依赖运行环境注入 `CODINGHUB_IMAGE`、`CODINGHUB_HOST_PORT` 和 `CODINGHUB_CONTAINER_PORT`；这些变量未设置时能否直接使用 Compose 启动属于**待确认**。该配置会将状态保存到命名卷 `yuanbao-data`。
 
+开发用 Dockerfile 位于 [`.codinghub/dev/Dockerfile`](../../.codinghub/dev/Dockerfile)，与生产镜像共享 `node:22-alpine` 基础镜像，仅设置 `NODE_ENV=development`，见 [`.codinghub/dev/environment.json`](../../.codinghub/dev/environment.json)。
+
 部署元数据将运行时标为 `node`、服务标为 `yuanbao`、容器端口标为 `8887`、健康检查路径标为 `/`，见 [`.codinghub/deploy.json`](../../.codinghub/deploy.json)。根目录 [`deploy.sh`](../../deploy.sh) 仅转发到 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh)，后者要求由部署运行环境提供 Compose 项目、Compose 文件、服务名和镜像等变量，并执行 Docker Compose。因此在普通本地 shell 中直接运行该部署脚本的前提属于**待确认**；本地验证优先使用上方的 `docker run` 或在已提供相应变量的部署环境中执行。
 
 ## 验证与测试
@@ -62,10 +64,14 @@ curl -f http://127.0.0.1:8887/api/state
 需要人工验收的浏览器行为来自 [`app.js`](../../app.js) 和 [`styles.css`](../../styles.css)：
 
 - 分别为 3、4、5、6 岁建档，检查课程数字范围。
+- 首次建档页检查宝宝小名输入框是否预填默认值 `"元宝"`。
 - 中途刷新，检查断点恢复；完成后重玩，检查原成绩不变。
 - 检查英语发音、答题音效与振动反馈在可用时生效，并在浏览器不支持时仍可继续学习。
+- 答对题目时检查：彩带粒子（30 个）从中心扩散、庆祝徽章弹出并显示随机车辆主题文案、合成音效播放（上行音阶 + 车辆主题音）。
+- 课程完成时检查：奖牌页面、全屏粒子庆祝（24 个）、四音阶完成音效、三段式振动。
 - 在服务端空状态且浏览器含旧数据时检查迁移。
 - 检查窄屏、安全区、键盘焦点和清除数据确认流程。
+- 检查 `prefers-reduced-motion: reduce` 时动画是否被禁用。
 
 目标浏览器及设备范围在仓库中未定义，属于**待确认**。
 
@@ -73,11 +79,12 @@ curl -f http://127.0.0.1:8887/api/state
 
 | 现象 | 优先检查 | 依据 |
 | --- | --- | --- |
-| 页面显示“暂时无法打开” | `/api/state` 响应、服务端控制台、数据文件可读性 | [`app.js`](../../app.js) 的 `init`；[`server.js`](../../server.js) 的 `loadState` |
+| 页面显示"暂时无法打开" | `/api/state` 响应、服务端控制台、数据文件可读性 | [`app.js`](../../app.js) 的 `init`；[`server.js`](../../server.js) 的 `loadState` |
 | 重启后资料或进度丢失 | `DATA_FILE` 的实际值、父目录写权限、容器是否挂载 `/data` | [`server.js`](../../server.js)、[`compose.yaml`](../../compose.yaml) |
 | 恢复位置异常 | 当日未完成记录的 `activityIndex` 与 `answers` | [`app.js`](../../app.js) 的 `todayDraft`、`startLesson` |
 | 同日课程变化 | 年龄、`startedAt`、浏览器本地日期与时区 | [`app.js`](../../app.js) 的 `localDate`、`dayNumber`、`makeLesson` |
 | 英语没有声音 | `speechSynthesis` 支持、浏览器播放策略、系统语音 | [`app.js`](../../app.js) 的 `speak` |
+| 答对后无庆祝特效 | Web Audio API 可用性、`AudioContext` 状态（需用户手势后 `resume`）、浏览器是否阻止自动播放 | [`app.js`](../../app.js) 的 `playFeedbackSound`、`celebrateWithParticles`、`showSuccessBadge` |
 | 容器健康检查失败 | 注入端口是否一致、根路径是否返回成功状态 | [`compose.yaml`](../../compose.yaml) |
 | 部署脚本立即退出 | 部署环境是否提供脚本要求的 `CODINGHUB_*` 变量 | [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh) |
 
@@ -92,5 +99,6 @@ curl -f http://127.0.0.1:8887/api/state
 | 本地日期依赖 | 天数、同日记录和连续打卡按浏览器本地时间计算 | 覆盖跨时区、夏令时与改系统时钟场景；统一时间语义前标为**待确认** |
 | 异常数据文件 | 读取失败会使用空内存状态，后续保存可能覆盖原文件 | 对生产卷做备份并监控读取错误；考虑阻止对解析失败文件的覆盖 |
 | 自动化覆盖缺失 | 当前只有手动命令和人工验收建议 | 优先补 API 集成测试，再覆盖课程确定性和统计函数 |
+| 音效自动播放限制 | 浏览器可能阻止 `AudioContext` 在无用户手势时播放；代码已处理 `suspended` 状态恢复 | 在自动播放策略严格的浏览器（如移动端 Safari）中人工验证 |
 
 每次改动课程、记录或 API 时，请结合[运行流程](./flows.md)核对断点与完成记录两种形态，并按本页完成相应验证。
