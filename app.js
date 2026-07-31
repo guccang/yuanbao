@@ -144,8 +144,21 @@ function loadSubjectModule(subject) {
 function makeSubjectLesson(subject, day, age) {
   const mod = loadSubjectModule(subject);
   if (mod) return mod.generateLesson(day, age);
-  // fallback
-  return { subject, day, age, title: subject, subtitle: "", activities: [] };
+  // fallback — 模块未加载时提供占位课程，避免 renderLesson 崩溃
+  const meta = SUBJECT_META[subject] || { label: subject, emoji: "📖" };
+  return {
+    subject, day, age,
+    title: meta.label,
+    subtitle: "课程模块暂未加载，请刷新页面后重试",
+    activities: [{
+      title: "课程模块加载失败",
+      hint: "请刷新页面后重试，或联系管理员检查服务配置",
+      visual: "⚠️",
+      answer: "true",
+      options: ["刷新页面"],
+      learn: true
+    }]
+  };
 }
 
 // ---- 今日课表 ----
@@ -420,8 +433,16 @@ function renderAnswers(activity) {
 }
 
 function renderLesson() {
-  const activity = state.lesson.activities[state.activityIndex];
-  const total = state.lesson.activities.length;
+  const lesson = state.lesson;
+  const activity = lesson?.activities?.[state.activityIndex];
+  if (!lesson || !activity) {
+    console.error("renderLesson: 缺少课程数据", { lesson, activityIndex: state.activityIndex });
+    state.view = "home";
+    render();
+    toast("课程数据加载失败，请返回首页重试");
+    return;
+  }
+  const total = lesson.activities.length;
   const percent = Math.round(state.activityIndex / total * 100);
   const meta = SUBJECT_META[state.selectedSubject] || { label: "学习", emoji: "📖" };
 
@@ -568,7 +589,7 @@ async function answerQuestion(button, activity) {
   sheet.innerHTML = `<div class="feedback-inner">
     <div class="feedback-face ${correct ? "feedback-star" : ""}">${correct ? "🌟" : "💪"}</div>
     <div class="feedback-copy"><strong>${correct ? "答对啦，真棒！" : "差一点，也很棒！"}</strong><span>${correct ? successSound.cheer : "正确答案是 " + activity.answer}</span></div>
-    <button class="primary-btn green" id="nextActivity">${state.activityIndex === state.lesson.activities.length - 1 ? "完成" : "继续 →"}</button>
+    <button class="primary-btn green" id="nextActivity">${state.activityIndex === (state.lesson?.activities?.length || 1) - 1 ? "完成" : "继续 →"}</button>
   </div>`;
   document.body.appendChild(sheet);
   document.querySelector("#nextActivity").addEventListener("click", nextActivity);
@@ -578,11 +599,11 @@ async function answerQuestion(button, activity) {
       await saveRecord({
         date: localDate(),
         subject: state.selectedSubject,
-        day: state.lesson.day,
+        day: state.lesson?.day || 1,
         completed: false,
         activityIndex: state.activityIndex + 1,
         answers: state.answers,
-        total: state.lesson.activities.length,
+        total: state.lesson?.activities?.length || state.answers.length,
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
@@ -596,13 +617,14 @@ async function nextActivity() {
   document.querySelector(".feedback-sheet")?.remove();
   state.feedback = null;
   state.activityIndex++;
-  if (state.activityIndex >= state.lesson.activities.length) {
+  const lesson = state.lesson;
+  if (!lesson || state.activityIndex >= lesson.activities.length) {
     const correct = state.answers.filter(a => a.correct).length;
-    const total = state.lesson.activities.length;
+    const total = lesson?.activities?.length || state.answers.length;
     const record = {
       date: localDate(),
       subject: state.selectedSubject,
-      day: state.lesson.day,
+      day: lesson?.day || 1,
       completed: true,
       correct,
       total,
@@ -638,7 +660,7 @@ function speak(word) {
 // ---- 完成页面 ----
 function renderComplete() {
   const correct = state.answers.filter(a => a.correct).length;
-  const total = state.lesson.activities.length;
+  const total = state.lesson?.activities?.length || state.answers.length;
   const meta = SUBJECT_META[state.selectedSubject] || { label: "学习", emoji: "📖" };
   const remainingSubjects = (state.todaySubjects || []).filter(s => s !== state.selectedSubject && !completedTodaySubject(s));
 
