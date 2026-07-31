@@ -515,12 +515,39 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .celebration-particles.correct i {
   color: var(--yellow);
-  font-size: clamp(19px, 6vw, 33px);
+  font-size: clamp(23px, 7vw, 42px);
   text-shadow: 0 3px 10px rgba(224, 166, 51, .28);
-  animation: star-burst .82s cubic-bezier(.16, .8, .3, 1) var(--delay) forwards;
+  animation: star-burst 1.02s cubic-bezier(.16, .8, .3, 1) var(--delay) forwards;
 }
 .celebration-particles.correct i:nth-child(3n) { color: var(--pink); }
 .celebration-particles.correct i:nth-child(3n + 2) { color: var(--blue); }
+.celebration-particles.correct {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 232, 126, .43), rgba(255,255,255,.08) 18%, transparent 40%),
+    radial-gradient(circle at 50% 48%, transparent 0 25%, rgba(255,255,255,.25) 26%, transparent 27%);
+  animation: celebration-flash .64s ease-out both;
+}
+.success-badge {
+  position: fixed;
+  z-index: 46;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  display: grid;
+  min-width: 154px;
+  padding: 9px 18px 10px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 25px;
+  color: #8a5312;
+  background: linear-gradient(135deg, #fff9b4, #ffd66c 62%, #ffad75);
+  box-shadow: 0 7px 0 #eea84c, 0 14px 30px rgba(147, 91, 30, .24);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: success-badge-pop 1.25s cubic-bezier(.16, .9, .25, 1) forwards;
+}
+.success-badge-emoji { position: absolute; left: -20px; top: -18px; font-size: 42px; filter: drop-shadow(0 4px 0 rgba(142,83,31,.16)); }
+.success-badge strong { font-size: 26px; line-height: 1; letter-spacing: .08em; }
+.success-badge small { margin-top: 4px; font-size: 12px; font-weight: 800; }
 .celebration-particles.complete { background: radial-gradient(circle at 50% 45%, rgba(255, 237, 160, .30), transparent 24rem); }
 .celebration-particles.complete i {
   color: var(--yellow);
@@ -660,8 +687,22 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 @keyframes star-burst {
   0% { opacity: 0; transform: translate(-50%, 12px) scale(.25) rotate(-20deg); }
+  18%, 62% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(var(--distance) * -1)) scale(1.18) rotate(30deg); }
+}
+
+@keyframes celebration-flash {
+  0% { opacity: 0; }
   20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(var(--distance) * -1)) scale(1.12) rotate(30deg); }
+  100% { opacity: .05; }
+}
+
+@keyframes success-badge-pop {
+  0% { opacity: 0; transform: translate(-50%, -48px) scale(.45) rotate(-9deg); }
+  18% { opacity: 1; transform: translate(-50%, 4px) scale(1.15) rotate(3deg); }
+  34% { transform: translate(-50%, 0) scale(.96) rotate(-2deg); }
+  72% { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%, -18px) scale(.86); }
 }
 
 @keyframes confetti-burst {

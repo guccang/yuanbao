@@ -7,6 +7,13 @@ const app = document.querySelector("#app");
 let feedbackAudioContext;
 let feedbackMasterGain;
 
+const SUCCESS_SOUNDS = [
+  { name: "火车", emoji: "🚂", cheer: "呜——呜——！火车带着小星星进站啦！", sound: "train" },
+  { name: "消防车", emoji: "🚒", cheer: "呜啦呜啦！消防车送来勇敢奖励！", sound: "firetruck" },
+  { name: "警车", emoji: "🚓", cheer: "哔啵哔啵！警车为你亮起胜利灯！", sound: "police" },
+  { name: "校车", emoji: "🚌", cheer: "嘟嘟！校车载着你的星星出发喽！", sound: "bus" }
+];
+
 const MATH_THEMES = [
   { name: "果园数一数", emoji: "🍎", items: ["🍎", "🍐", "🍊", "🍓"] },
   { name: "海洋小队", emoji: "🐠", items: ["🐠", "🐟", "🐙", "🦀"] },
@@ -390,7 +397,37 @@ function renderLesson() {
   if (activity.subject === "english" && activity.visual === "🔊") setTimeout(() => speak(activity.word.en), 250);
 }
 
-function playFeedbackSound(type = "correct") {
+function audioTone(context, output, { start, duration, frequency, endFrequency = frequency, type = "sine", volume = .1 }) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, start);
+  oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
+  gain.gain.setValueAtTime(.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + .015);
+  gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+  oscillator.connect(gain).connect(output);
+  oscillator.start(start);
+  oscillator.stop(start + duration + .02);
+}
+
+function playVehicleSound(context, output, start, vehicle) {
+  if (vehicle === "train") {
+    audioTone(context, output, { start, duration: .52, frequency: 440, endFrequency: 660, type: "triangle", volume: .14 });
+    audioTone(context, output, { start: start + .58, duration: .38, frequency: 660, endFrequency: 520, type: "triangle", volume: .12 });
+    [0, .14, .28, .42].forEach(offset => audioTone(context, output, { start: start + offset, duration: .06, frequency: 120, type: "square", volume: .045 }));
+  } else if (vehicle === "firetruck" || vehicle === "police") {
+    const tones = vehicle === "firetruck" ? [660, 880] : [740, 520];
+    [0, .2, .4, .6].forEach((offset, index) => audioTone(context, output, {
+      start: start + offset, duration: .19, frequency: tones[index % 2], type: "sine", volume: .105
+    }));
+  } else {
+    audioTone(context, output, { start, duration: .16, frequency: 310, endFrequency: 390, type: "square", volume: .095 });
+    audioTone(context, output, { start: start + .24, duration: .2, frequency: 390, endFrequency: 300, type: "square", volume: .095 });
+  }
+}
+
+function playFeedbackSound(type = "correct", vehicle) {
   if (!(window.AudioContext || window.webkitAudioContext)) return;
   try {
     feedbackAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
@@ -403,6 +440,7 @@ function playFeedbackSound(type = "correct") {
     feedbackMasterGain.gain.value = .72;
     feedbackMasterGain.connect(context.destination);
     if (context.state === "suspended") context.resume().catch(() => {});
+    if (vehicle) playVehicleSound(context, feedbackMasterGain, start + .34, vehicle);
     notes.forEach((frequency, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
@@ -422,18 +460,29 @@ function playFeedbackSound(type = "correct") {
   }
 }
 
-function celebrateWithParticles(kind, count = 16) {
+function celebrateWithParticles(kind, count = 16, successSound) {
   const effect = document.createElement("div");
   effect.className = `celebration-particles ${kind}`;
   effect.setAttribute("aria-hidden", "true");
-  const symbols = kind === "complete" ? ["🎉", "✦", "⭐", "●", "❤"] : ["✦", "⭐", "●"];
+  const symbols = kind === "complete"
+    ? ["🎉", "✦", "⭐", "●", "❤"]
+    : ["🎊", "✨", "⭐", "🌟", "💛", successSound?.emoji || "✦"];
   effect.innerHTML = Array.from({ length: count }, (_, index) => {
     const angle = (360 / count) * index + (index % 2) * 8;
-    const distance = kind === "complete" ? 130 + (index % 4) * 24 : 74 + (index % 3) * 16;
+    const distance = kind === "complete" ? 130 + (index % 4) * 24 : 110 + (index % 5) * 26;
     return `<i style="--angle:${angle}deg;--distance:${distance}px;--delay:${index * 22}ms">${symbols[index % symbols.length]}</i>`;
   }).join("");
   document.body.appendChild(effect);
   window.setTimeout(() => effect.remove(), kind === "complete" ? 1700 : 1100);
+}
+
+function showSuccessBadge(successSound) {
+  const badge = document.createElement("div");
+  badge.className = "success-badge";
+  badge.setAttribute("aria-hidden", "true");
+  badge.innerHTML = `<span class="success-badge-emoji">${successSound.emoji}</span><strong>答对啦！</strong><small>${successSound.name}来庆祝</small>`;
+  document.body.appendChild(badge);
+  window.setTimeout(() => badge.remove(), 1250);
 }
 
 function showAnswerEffect(correct) {
@@ -443,10 +492,14 @@ function showAnswerEffect(correct) {
   prompt?.classList.add(correct ? "prompt-celebrate" : "prompt-try-again");
 
   if (correct) {
-    celebrateWithParticles("correct");
-    playFeedbackSound();
+    const successSound = SUCCESS_SOUNDS[Math.floor(Math.random() * SUCCESS_SOUNDS.length)];
+    celebrateWithParticles("correct", 30, successSound);
+    showSuccessBadge(successSound);
+    playFeedbackSound("correct", successSound.sound);
     if (navigator.vibrate) navigator.vibrate(35);
+    return successSound;
   }
+  return null;
 }
 
 async function answerQuestion(button, activity) {
@@ -458,14 +511,14 @@ async function answerQuestion(button, activity) {
     if (item.dataset.answer.toLowerCase() === String(activity.answer).toLowerCase()) item.classList.add("correct");
   });
   if (!correct) button.classList.add("wrong");
-  showAnswerEffect(correct);
+  const successSound = showAnswerEffect(correct);
   state.answers[state.activityIndex] = { subject: activity.subject, correct, chosen, answer: activity.answer };
   state.feedback = { correct, answer: activity.answer };
   const sheet = document.createElement("div");
   sheet.className = `feedback-sheet ${correct ? "feedback-correct" : "feedback-wrong"}`;
   sheet.innerHTML = `<div class="feedback-inner">
     <div class="feedback-face ${correct ? "feedback-star" : ""}">${correct ? "🌟" : "💪"}</div>
-    <div class="feedback-copy"><strong>${correct ? "答对啦，真棒！" : "差一点，也很棒！"}</strong><span>${correct ? "收下一颗闪亮小星星，继续闯关吧！" : `正确答案是 ${activity.answer}`}</span></div>
+    <div class="feedback-copy"><strong>${correct ? "答对啦，真棒！" : "差一点，也很棒！"}</strong><span>${correct ? successSound.cheer : `正确答案是 ${activity.answer}`}</span></div>
     <button class="primary-btn green" id="nextActivity">${state.activityIndex === 5 ? "完成" : "继续 →"}</button>
   </div>`;
   document.body.appendChild(sheet);
