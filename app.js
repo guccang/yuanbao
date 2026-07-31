@@ -5,6 +5,7 @@ const DB_VERSION = 1;
 const DAY_MS = 86400000;
 const app = document.querySelector("#app");
 let feedbackAudioContext;
+let feedbackMasterGain;
 
 const MATH_THEMES = [
   { name: "果园数一数", emoji: "🍎", items: ["🍎", "🍐", "🍊", "🍓"] },
@@ -52,7 +53,8 @@ const state = {
   activityIndex: 0,
   answers: [],
   feedback: null,
-  isReview: false
+  isReview: false,
+  completionCelebrated: false
 };
 
 function openLegacyDatabase() {
@@ -344,6 +346,7 @@ async function startLesson(restart = false) {
   state.activityIndex = draft?.activityIndex || 0;
   state.answers = draft?.answers || [];
   state.feedback = null;
+  state.completionCelebrated = false;
   state.view = "lesson";
   render();
 }
@@ -387,25 +390,29 @@ function renderLesson() {
   if (activity.subject === "english" && activity.visual === "🔊") setTimeout(() => speak(activity.word.en), 250);
 }
 
-function playFeedbackSound(correct) {
+function playFeedbackSound(type = "correct") {
   if (!(window.AudioContext || window.webkitAudioContext)) return;
   try {
     feedbackAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
     const context = feedbackAudioContext;
     const start = context.currentTime;
-    const notes = correct ? [523.25, 659.25, 783.99] : [293.66, 220];
-    const duration = correct ? .14 : .18;
-    if (context.state === "suspended") context.resume();
+    const celebration = type === "complete";
+    const notes = celebration ? [523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99];
+    const duration = celebration ? .26 : .16;
+    feedbackMasterGain ||= context.createGain();
+    feedbackMasterGain.gain.value = .72;
+    feedbackMasterGain.connect(context.destination);
+    if (context.state === "suspended") context.resume().catch(() => {});
     notes.forEach((frequency, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      const noteStart = start + index * (correct ? .11 : .13);
-      oscillator.type = correct ? "sine" : "triangle";
+      const noteStart = start + index * (celebration ? .13 : .105);
+      oscillator.type = index === notes.length - 1 ? "triangle" : "sine";
       oscillator.frequency.setValueAtTime(frequency, noteStart);
       gain.gain.setValueAtTime(.0001, noteStart);
-      gain.gain.exponentialRampToValueAtTime(correct ? .12 : .09, noteStart + .015);
+      gain.gain.exponentialRampToValueAtTime(celebration ? .16 : .12, noteStart + .018);
       gain.gain.exponentialRampToValueAtTime(.0001, noteStart + duration);
-      oscillator.connect(gain).connect(context.destination);
+      oscillator.connect(gain).connect(feedbackMasterGain);
       oscillator.start(noteStart);
       oscillator.stop(noteStart + duration + .02);
     });
@@ -415,24 +422,31 @@ function playFeedbackSound(correct) {
   }
 }
 
+function celebrateWithParticles(kind, count = 16) {
+  const effect = document.createElement("div");
+  effect.className = `celebration-particles ${kind}`;
+  effect.setAttribute("aria-hidden", "true");
+  const symbols = kind === "complete" ? ["🎉", "✦", "⭐", "●", "❤"] : ["✦", "⭐", "●"];
+  effect.innerHTML = Array.from({ length: count }, (_, index) => {
+    const angle = (360 / count) * index + (index % 2) * 8;
+    const distance = kind === "complete" ? 130 + (index % 4) * 24 : 74 + (index % 3) * 16;
+    return `<i style="--angle:${angle}deg;--distance:${distance}px;--delay:${index * 22}ms">${symbols[index % symbols.length]}</i>`;
+  }).join("");
+  document.body.appendChild(effect);
+  window.setTimeout(() => effect.remove(), kind === "complete" ? 1700 : 1100);
+}
+
 function showAnswerEffect(correct) {
   const activity = document.querySelector(".activity");
   const prompt = document.querySelector(".prompt-card");
   activity?.classList.add(correct ? "answer-is-correct" : "answer-is-wrong");
   prompt?.classList.add(correct ? "prompt-celebrate" : "prompt-try-again");
 
-  const effect = document.createElement("div");
-  effect.className = `answer-effect ${correct ? "correct-effect" : "wrong-effect"}`;
-  effect.setAttribute("aria-hidden", "true");
-  effect.innerHTML = correct
-    ? Array.from({ length: 10 }, (_, index) => `<i style="--i:${index}">${["✦", "⭐", "●"][index % 3]}</i>`).join("")
-    : "<i>☁</i><i>↗</i><i>💭</i>";
-  document.body.appendChild(effect);
-  effect.addEventListener("animationend", event => {
-    if (event.target === effect) effect.remove();
-  });
-  window.setTimeout(() => effect.remove(), 1200);
-  playFeedbackSound(correct);
+  if (correct) {
+    celebrateWithParticles("correct");
+    playFeedbackSound();
+    if (navigator.vibrate) navigator.vibrate(35);
+  }
 }
 
 async function answerQuestion(button, activity) {
@@ -450,8 +464,8 @@ async function answerQuestion(button, activity) {
   const sheet = document.createElement("div");
   sheet.className = `feedback-sheet ${correct ? "feedback-correct" : "feedback-wrong"}`;
   sheet.innerHTML = `<div class="feedback-inner">
-    <div class="feedback-face">${correct ? "🌟" : "💪"}</div>
-    <div class="feedback-copy"><strong>${correct ? "答对啦，真棒！" : "差一点，也很棒！"}</strong><span>${correct ? "你的小脑袋又变聪明了一点" : `正确答案是 ${activity.answer}`}</span></div>
+    <div class="feedback-face ${correct ? "feedback-star" : ""}">${correct ? "🌟" : "💪"}</div>
+    <div class="feedback-copy"><strong>${correct ? "答对啦，真棒！" : "差一点，也很棒！"}</strong><span>${correct ? "收下一颗闪亮小星星，继续闯关吧！" : `正确答案是 ${activity.answer}`}</span></div>
     <button class="primary-btn green" id="nextActivity">${state.activityIndex === 5 ? "完成" : "继续 →"}</button>
   </div>`;
   document.body.appendChild(sheet);
@@ -521,6 +535,14 @@ function renderComplete() {
     <button class="primary-btn green" id="backHome">回到首页</button>
   </main>`;
   document.querySelector("#backHome").addEventListener("click", () => { state.view = "home"; render(); });
+  if (!state.completionCelebrated) {
+    state.completionCelebrated = true;
+    requestAnimationFrame(() => {
+      celebrateWithParticles("complete", 24);
+      playFeedbackSound("complete");
+      if (navigator.vibrate) navigator.vibrate([35, 45, 70]);
+    });
+  }
 }
 
 function renderProgress() {

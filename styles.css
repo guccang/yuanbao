@@ -498,38 +498,38 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .prompt-celebrate { animation: prompt-glow .72s ease-out; }
 .prompt-try-again { animation: prompt-nudge .46s ease-out; }
-.answer-effect {
+.celebration-particles {
   position: fixed;
-  z-index: 35;
+  z-index: 45;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
 }
-.answer-effect i {
+.celebration-particles i {
   position: absolute;
   display: block;
+  left: 50%;
+  top: 50%;
   font-style: normal;
   user-select: none;
 }
-.correct-effect {
-  animation: effect-fade 1.05s ease-out forwards;
-}
-.correct-effect i {
-  left: calc(50% + (var(--i) - 4.5) * 4%);
-  top: 46%;
+.celebration-particles.correct i {
   color: var(--yellow);
   font-size: clamp(19px, 6vw, 33px);
   text-shadow: 0 3px 10px rgba(224, 166, 51, .28);
-  animation: star-burst .82s cubic-bezier(.16, .8, .3, 1) forwards;
-  animation-delay: calc(var(--i) * .018s);
+  animation: star-burst .82s cubic-bezier(.16, .8, .3, 1) var(--delay) forwards;
 }
-.correct-effect i:nth-child(3n) { color: var(--pink); }
-.correct-effect i:nth-child(3n + 2) { color: var(--blue); }
-.wrong-effect { animation: effect-fade .82s ease-out forwards; }
-.wrong-effect i { top: 43%; left: 50%; font-size: clamp(24px, 8vw, 39px); opacity: 0; animation: thought-float .68s ease-out forwards; }
-.wrong-effect i:nth-child(1) { margin-left: -47px; animation-delay: .02s; }
-.wrong-effect i:nth-child(2) { margin-left: 14px; color: var(--pink); animation-delay: .1s; }
-.wrong-effect i:nth-child(3) { margin-left: 48px; animation-delay: .16s; }
+.celebration-particles.correct i:nth-child(3n) { color: var(--pink); }
+.celebration-particles.correct i:nth-child(3n + 2) { color: var(--blue); }
+.celebration-particles.complete { background: radial-gradient(circle at 50% 45%, rgba(255, 237, 160, .30), transparent 24rem); }
+.celebration-particles.complete i {
+  color: var(--yellow);
+  font-size: clamp(20px, 6vw, 34px);
+  animation: confetti-burst 1.25s cubic-bezier(.12, .75, .25, 1) var(--delay) forwards;
+}
+.celebration-particles.complete i:nth-child(5n + 2) { color: var(--pink); }
+.celebration-particles.complete i:nth-child(5n + 3) { color: var(--blue); }
+.celebration-particles.complete i:nth-child(5n + 4) { color: var(--green); }
 
 .feedback-sheet {
   position: fixed;
@@ -549,6 +549,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .feedback-sheet.feedback-wrong { border-top-color: #ffd3cf; background: linear-gradient(135deg, #ffffff, #fff7f4); }
 .feedback-inner { display: flex; width: min(100%, 724px); margin: auto; align-items: center; gap: 14px; }
 .feedback-face { font-size: 39px; }
+.feedback-face.feedback-star { animation: star-wiggle .62s cubic-bezier(.2, .85, .35, 1.2); }
 .feedback-copy { flex: 1; }
 .feedback-copy strong { display: block; color: var(--green-dark); font-size: 19px; }
 .feedback-wrong .feedback-copy strong { color: #b75a50; }
@@ -658,20 +659,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 @keyframes star-burst {
-  0% { opacity: 0; transform: translate(-50%, 14px) scale(.25) rotate(-20deg); }
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(.25) rotate(-20deg); }
   20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(calc(-50% + (var(--i) - 4.5) * 16px), -102px) scale(1.12) rotate(30deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(var(--distance) * -1)) scale(1.12) rotate(30deg); }
 }
 
-@keyframes thought-float {
-  0% { opacity: 0; transform: translateY(18px) scale(.6); }
-  35% { opacity: .85; }
-  100% { opacity: 0; transform: translateY(-48px) scale(1.05); }
+@keyframes confetti-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(0); }
+  14% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(var(--distance)) rotate(250deg) scale(1.08); }
 }
 
-@keyframes effect-fade {
-  0%, 70% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes star-wiggle {
+  0% { transform: scale(.7) rotate(-12deg); }
+  55% { transform: scale(1.22) rotate(9deg); }
+  100% { transform: scale(1) rotate(0); }
 }
 
 @keyframes feedback-rise {
