@@ -19,7 +19,7 @@ case "${1:-}" in
     docker compose \
       --project-name "$CODINGHUB_COMPOSE_PROJECT" \
       --file "$CODINGHUB_COMPOSE_FILE" \
-      down
+      down --remove-orphans
     ;;
   *)
     echo "Usage: $0 {deploy|stop}" >&2
