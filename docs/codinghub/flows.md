@@ -73,7 +73,7 @@ flowchart TD
 
 首次作答会禁用选项并显示正确答案。非重玩模式每题立即保存断点；第六题后以 `max(1, round(correct / 2))` 计算星星，并覆盖同日记录。重玩只显示反馈，不改写既有成绩，见 [`app.js`](../../app.js) 的 `startLesson`、`answerQuestion`、`nextActivity`。
 
-英语发音使用浏览器的 `speechSynthesis`、`en-US` 语言；不支持时只显示提示，学习可继续，见 [`app.js`](../../app.js) 的 `speak`。
+英语发音使用浏览器的 `speechSynthesis`、`en-US` 语言；不支持时只显示提示，学习可继续。答对和完成课程还会尽力调用 Web Audio API 与 `navigator.vibrate` 提供反馈；这些能力不可用或播放失败时不会中断答题流程，见 [`app.js`](../../app.js) 的 `speak`、`playFeedbackSound`、`showAnswerEffect`、`renderComplete`。
 
 ## 服务端写入
 

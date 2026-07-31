@@ -11,6 +11,8 @@ flowchart LR
     HTML --> Client[app.js]
     HTML --> CSS[styles.css]
     Client --> Speech[Web Speech API]
+    Client --> Audio[Web Audio API]
+    Client --> Vibration[振动能力]
     Client --> Legacy[旧 IndexedDB]
     Client -->|HTTP JSON| API[server.js API]
     Browser -->|静态资源请求| Static[server.js 静态服务]
@@ -27,7 +29,7 @@ flowchart LR
 | 模块 | 对外职责 | 直接依赖 | 不负责 |
 | --- | --- | --- | --- |
 | HTML 壳 | 提供挂载节点并加载资源 | CSS、客户端脚本 | 业务状态与 API |
-| 客户端应用 | 课程生成、状态管理、页面渲染、统计、数据调用 | DOM、Fetch、Web Speech、旧 IndexedDB | 权威持久化、静态资源传输 |
+| 客户端应用 | 课程生成、状态管理、页面渲染、统计、数据调用与答题反馈 | DOM、Fetch、Web Speech、Web Audio、振动能力、旧 IndexedDB | 权威持久化、静态资源传输 |
 | HTTP 服务 | 静态文件分发、API 路由、最小输入校验 | Node.js 内置模块、文件系统 | 课程生成、DOM 渲染 |
 | JSON 存储 | 保存一份完整应用状态 | 本地文件系统 | 多用户隔离、查询、数据库事务 |
 | 部署层 | 构建镜像、配置端口与数据卷、健康检查 | Docker / Compose | 业务逻辑 |
@@ -96,18 +98,30 @@ classDiagram
         string title
         string hint
         string answer
-        string[] options
+        Array options
+        Word word
+        Word[] pictureOptions
+    }
+    class Word {
+        string en
+        string cn
+        string emoji
+        string group
     }
     PersistedState "1" o-- "0..1" Profile
     PersistedState "1" o-- "0..*" ProgressRecord
     ProgressRecord "1" o-- "0..*" Answer
     Lesson "1" o-- "6" Activity
+    Activity "0..1" --> "1" Word
+    Activity "0..1" --> "0..*" Word
 ```
 
 | 记录形态 | 当前写入字段 | 产生处 |
 | --- | --- | --- |
 | 未完成断点 | `date`、`day`、`completed: false`、`activityIndex`、`answers`、`updatedAt` | `answerQuestion` |
 | 已完成汇总 | `date`、`day`、`completed: true`、`correct`、`total`、`stars`、`answers`、`completedAt` | `nextActivity` |
+
+`Activity.options` 的元素在数学活动中是数字、在英语活动中是字符串；带图片选项的英语活动另有 `word` 与 `pictureOptions`。这两类课程对象仅在客户端内存中生成，并不写入服务端状态，见 [`app.js`](../../app.js) 的 `makeLesson`、`renderAnswers`。
 
 ## API 与持久化边界
 

@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 页面与样式 | HTML5 与原生 CSS；页面挂载点为 `#app`，状态提示为 `#toast` | [`index.html`](../../index.html)、[`styles.css`](../../styles.css) |
 | 客户端 | 原生 JavaScript：内存状态、DOM 渲染、课程生成、Fetch 调用 | [`app.js`](../../app.js) |
-| 浏览器能力 | Fetch、IndexedDB（旧数据迁移）、Web Speech API（英语发音） | [`app.js`](../../app.js) |
+| 浏览器能力 | Fetch、IndexedDB（旧数据迁移）、Web Speech API（英语发音）、Web Audio API 与振动反馈 | [`app.js`](../../app.js) 的 `api`、迁移函数、`speak`、`playFeedbackSound`、`showAnswerEffect` |
 | 服务端 | Node.js CommonJS，仅使用内置 `http`、`fs`、`path` | [`server.js`](../../server.js) |
 | 持久化 | 进程内状态加一个 UTF-8 JSON 文件，默认 `data/yuanbao.json` | [`server.js`](../../server.js)、[`README.md`](../../README.md) |
 | 容器 | `node:22-alpine`、`node` 用户、Compose 命名卷 | [`Dockerfile`](../../Dockerfile)、[`compose.yaml`](../../compose.yaml) |
