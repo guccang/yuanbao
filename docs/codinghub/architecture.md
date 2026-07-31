@@ -17,6 +17,7 @@ flowchart LR
     API --> Memory[进程内 persistedState]
     Memory --> Queue[saveQueue]
     Queue --> File[DATA_FILE JSON 文件]
+    Deploy[Dockerfile / Compose] --> API
 ```
 
 资源加载、浏览器能力和 API 调用来自 [`index.html`](../../index.html) 与 [`app.js`](../../app.js)；服务端分派与文件写入来自 [`server.js`](../../server.js)。
@@ -32,6 +33,8 @@ flowchart LR
 | 部署层 | 构建镜像、配置端口与数据卷、健康检查 | Docker / Compose | 业务逻辑 |
 
 浏览器单向调用服务端 API，服务端单向写入文件；服务端不加载客户端脚本，业务代码也不引用 Docker 配置。这些关系可由 [`app.js`](../../app.js)、[`server.js`](../../server.js)、[`Dockerfile`](../../Dockerfile)、[`compose.yaml`](../../compose.yaml) 直接验证。
+
+静态资源和 API 共用同一个 HTTP 服务：`/api/` 前缀先进入 API 分派，其余路径按相对于 `SOURCE_DIR` 的文件处理；服务端以解析后的绝对路径限制访问范围，越界路径返回 `403`。允许的 MIME 映射和路径检查都在 [`server.js`](../../server.js) 中。它不是访问控制或用户隔离机制，部署边界的风险见[开发指南](./development.md)。
 
 ## 客户端内部职责
 
@@ -116,6 +119,8 @@ classDiagram
 | `DELETE /api/state` | 清空资料和记录 | 无 |
 
 服务端以 `date` 为进度记录键。启动时读取文件，写入时将完整内存快照写到同目录临时文件后重命名，并用 `saveQueue` 串行化同一进程内写入。因此它是单进程、单数据文件、单资料模型，见 [`server.js`](../../server.js)。
+
+`PUT /api/progress` 不会按上表之外的字段拒绝请求：除 `date` 外，记录字段由客户端提供并原样保存。`GET /api/state` 也会返回整个状态对象。这是当前接口契约，不应据此假定存在字段级权限或版本兼容保证；演进时需同步检查客户端读写点与[运行流程](./flows.md)。
 
 ## 相关文档
 

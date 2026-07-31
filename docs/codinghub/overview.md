@@ -4,6 +4,8 @@
 
 元宝成长乐园是一个面向 3–6 岁儿童的移动端优先数学与英语启蒙 Web 应用。它按儿童年龄与学习天数在浏览器生成每天一节课：固定包含 3 个数学活动与 3 个英语活动，并保存资料、答题断点、完成记录、正确率、星星和连续学习天数。产品定位与活动数量见 [`README.md`](../../README.md) 和 [`app.js`](../../app.js) 的 `makeLesson`、`renderProgress`。
 
+本文的结论以仓库当前文件为准；未由文件定义的运行条件均标为**待确认**。接口和状态细节在[架构说明](./architecture.md)，运行时顺序在[运行流程](./flows.md)，命令与验收方式在[开发指南](./development.md)。
+
 ## 技术栈
 
 | 层次 | 当前实现 | 依据 |
@@ -29,6 +31,8 @@
 | [`server.js`](../../server.js) | 静态文件服务、状态 API、输入校验及 JSON 文件持久化 |
 | [`Dockerfile`](../../Dockerfile) | 生产镜像；复制四个运行所需文件并以 `node server.js` 启动 |
 | [`compose.yaml`](../../compose.yaml) | 容器端口映射、`/data/yuanbao.json` 数据路径、健康检查与 `yuanbao-data` 卷 |
+| [`.codinghub/deploy.json`](../../.codinghub/deploy.json) | CodingHub 部署元数据：运行时、构建上下文、Compose 服务、容器端口与健康检查路径 |
+| [`deploy.sh`](../../deploy.sh) 与 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh) | 仓库根部署入口及其转发的 `deploy` / `stop` 操作 |
 | [`docs/codinghub/`](./) | 本组面向维护者的长期文档 |
 
 `data/` 是服务端首次写入时按需创建的运行时目录，不是当前仓库中的已提交目录，见 [`server.js`](../../server.js) 的 `persistState`。
@@ -39,6 +43,7 @@
 2. 根路径 `/` 被映射为 [`index.html`](../../index.html)，页面加载 [`styles.css`](../../styles.css) 与 [`app.js`](../../app.js)。
 3. [`app.js`](../../app.js) 末尾的 `init()` 请求 `GET /api/state`；随后渲染首次建档页或首页，且仅在服务端尚无资料时尝试旧 IndexedDB 迁移。
 4. 容器入口是 [`Dockerfile`](../../Dockerfile) 中的 `CMD ["node", "server.js"]`；Compose 通过环境变量提供端口并挂载数据卷，见 [`compose.yaml`](../../compose.yaml)。
+5. 部署编排入口是根目录的 [`deploy.sh`](../../deploy.sh)，它将命令转发给 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh)；服务名、容器端口和根路径健康检查在 [`.codinghub/deploy.json`](../../.codinghub/deploy.json) 中声明。
 
 ## 文档导航
 

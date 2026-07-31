@@ -32,6 +32,8 @@ docker run --rm -p 8887:8887 -v yuanbao-dev-data:/data \
 
 镜像仅复制 `index.html`、`app.js`、`styles.css`、`server.js`，并以非 root 的 `node` 用户运行，见 [`Dockerfile`](../../Dockerfile)。[`compose.yaml`](../../compose.yaml) 依赖运行环境注入 `CODINGHUB_IMAGE`、`CODINGHUB_HOST_PORT` 和 `CODINGHUB_CONTAINER_PORT`；这些变量未设置时能否直接使用 Compose 启动属于**待确认**。该配置会将状态保存到命名卷 `yuanbao-data`。
 
+部署元数据将运行时标为 `node`、服务标为 `yuanbao`、容器端口标为 `8887`、健康检查路径标为 `/`，见 [`.codinghub/deploy.json`](../../.codinghub/deploy.json)。根目录 [`deploy.sh`](../../deploy.sh) 仅转发到 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh)，后者要求由部署运行环境提供 Compose 项目、Compose 文件、服务名和镜像等变量，并执行 Docker Compose。因此在普通本地 shell 中直接运行该部署脚本的前提属于**待确认**；本地验证优先使用上方的 `docker run` 或在已提供相应变量的部署环境中执行。
+
 ## 验证与测试
 
 当前仓库未提供自动化测试套件。可先执行语法检查：
@@ -77,6 +79,7 @@ curl -f http://127.0.0.1:8887/api/state
 | 同日课程变化 | 年龄、`startedAt`、浏览器本地日期与时区 | [`app.js`](../../app.js) 的 `localDate`、`dayNumber`、`makeLesson` |
 | 英语没有声音 | `speechSynthesis` 支持、浏览器播放策略、系统语音 | [`app.js`](../../app.js) 的 `speak` |
 | 容器健康检查失败 | 注入端口是否一致、根路径是否返回成功状态 | [`compose.yaml`](../../compose.yaml) |
+| 部署脚本立即退出 | 部署环境是否提供脚本要求的 `CODINGHUB_*` 变量 | [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh) |
 
 ## 常见风险
 

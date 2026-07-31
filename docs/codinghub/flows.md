@@ -98,6 +98,8 @@ sequenceDiagram
 
 请求体限制为 1 MiB。`saveQueue` 避免同一进程内的文件写入交叉；写入的是完整快照而非增量日志，见 [`server.js`](../../server.js) 的 `MAX_BODY_SIZE`、`readJson`、`persistState`。
 
+客户端只有在 `PUT /api/progress` 成功后才将该记录合并进 `state.records`；答题断点写入失败时会保留当前页面上的答题反馈并显示提示。完成页保存没有单独的 `try/catch`，因此保存失败时会由该异步事件处理的异常表现决定，是否有统一的全局错误捕获属于**待确认**；相关实现见 [`app.js`](../../app.js) 的 `saveRecord`、`answerQuestion`、`nextActivity`。
+
 ## 统计与清除
 
 - 首页从完成记录计算课程数、连续天数和近七天打卡；当日未完成记录决定进度条，见 [`app.js`](../../app.js) 的 `streak`、`renderWeek`、`renderHome`。
