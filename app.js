@@ -320,7 +320,7 @@ function renderOnboarding() {
     <p>每天一节数学 + 英语互动课<br>专为 3–6 岁宝宝设计</p>
     <form class="form-card" id="profileForm">
       <label class="field">宝宝的小名
-        <input id="childName" maxlength="8" placeholder="例如：元宝" autocomplete="off" required>
+        <input id="childName" maxlength="8" placeholder="例如：元宝" value="元宝" autocomplete="off" required>
       </label>
       <strong>宝宝几岁啦？</strong>
       <div class="age-picker" role="group" aria-label="选择宝宝年龄">
