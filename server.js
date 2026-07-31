@@ -3,11 +3,14 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const root = path.resolve(process.env.SOURCE_DIR || ".");
 const port = Number(process.env.PORT || 8887);
 const dataFile = path.resolve(process.env.DATA_FILE || path.join(root, "data", "yuanbao.json"));
 const MAX_BODY_SIZE = 1024 * 1024;
+const SESSION_MAX_AGE_MS = 7 * 24 * 3600 * 1000; // 7 天
+
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -18,22 +21,47 @@ const types = {
   ".ico": "image/x-icon"
 };
 
+// ---- 默认课表 ----
+const DEFAULT_SCHEDULE = {
+  0: [],                      // 周日 — 自由
+  1: ["math", "english"],     // 周一
+  2: ["physics", "math"],     // 周二
+  3: ["english", "physics"],  // 周三
+  4: ["math", "english"],     // 周四
+  5: ["physics", "math"],     // 周五
+  6: ["english"]              // 周六
+};
+
+// ---- 密码工具 ----
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
+}
+
+function generateSalt() {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+// ---- 持久化 ----
 let persistedState = loadState();
 let saveQueue = Promise.resolve();
 
 function emptyState() {
-  return { profile: null, records: [] };
+  return { accounts: {}, sessions: {} };
 }
 
 function loadState() {
   try {
     const parsed = JSON.parse(fs.readFileSync(dataFile, "utf8"));
     return {
-      profile: parsed.profile && typeof parsed.profile === "object" ? parsed.profile : null,
-      records: Array.isArray(parsed.records) ? parsed.records : []
+      accounts: (parsed.accounts && typeof parsed.accounts === "object") ? parsed.accounts : {},
+      sessions: (parsed.sessions && typeof parsed.sessions === "object") ? parsed.sessions : {}
     };
   } catch (error) {
-    if (error.code !== "ENOENT") console.error(`读取数据文件失败：${error.message}`);
+    if (error.code !== "ENOENT") console.error("读取数据文件失败：" + error.message);
     return emptyState();
   }
 }
@@ -42,13 +70,43 @@ function persistState() {
   const snapshot = JSON.stringify(persistedState, null, 2);
   saveQueue = saveQueue.catch(() => {}).then(async () => {
     await fs.promises.mkdir(path.dirname(dataFile), { recursive: true });
-    const temporaryFile = `${dataFile}.tmp`;
+    const temporaryFile = dataFile + ".tmp";
     await fs.promises.writeFile(temporaryFile, snapshot, "utf8");
     await fs.promises.rename(temporaryFile, dataFile);
   });
   return saveQueue;
 }
 
+// ---- 会话管理 ----
+function getAccountId(request) {
+  const cookie = request.headers.cookie || "";
+  const match = cookie.match(/(?:^|;\s*)yuanbao_session=([^;]*)/);
+  if (!match) return null;
+  const token = match[1];
+  const session = persistedState.sessions[token];
+  if (!session) return null;
+  if (Date.now() - session.createdAt > SESSION_MAX_AGE_MS) {
+    delete persistedState.sessions[token];
+    return null;
+  }
+  return session.accountId;
+}
+
+function createSession(response, accountId) {
+  const token = generateToken();
+  persistedState.sessions[token] = { accountId, createdAt: Date.now() };
+  response.setHeader("Set-Cookie", `yuanbao_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_MS / 1000}`);
+  return token;
+}
+
+function destroySession(request, response) {
+  const cookie = request.headers.cookie || "";
+  const match = cookie.match(/(?:^|;\s*)yuanbao_session=([^;]*)/);
+  if (match) delete persistedState.sessions[match[1]];
+  response.setHeader("Set-Cookie", "yuanbao_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+}
+
+// ---- 辅助函数 ----
 function sendJson(response, status, value) {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -84,42 +142,279 @@ function readJson(request) {
   });
 }
 
-async function handleApi(request, response, requestPath) {
-  if (requestPath === "/api/state" && request.method === "GET") {
-    return sendJson(response, 200, persistedState);
+// ---- 导出 HTML ----
+function generateExportHtml(account) {
+  const profile = account.profile || {};
+  const records = account.records || [];
+  const completed = records.filter(r => r.completed).sort((a, b) => b.date.localeCompare(a.date));
+  const totalStars = completed.reduce((sum, r) => sum + (r.stars || 0), 0);
+  const mathRecords = completed.filter(r => r.subject === "math");
+  const physicsRecords = completed.filter(r => r.subject === "physics");
+  const englishRecords = completed.filter(r => r.subject === "english");
+
+  const accuracy = (list) => {
+    const answers = list.flatMap(r => r.answers || []);
+    return answers.length ? Math.round(answers.filter(a => a.correct).length / answers.length * 100) : 0;
+  };
+
+  function streakDays() {
+    const dates = new Set(completed.map(r => r.date));
+    let cursor = new Date();
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000;
+    const local = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    if (!dates.has(local)) cursor.setDate(cursor.getDate() - 1);
+    let count = 0;
+    while (dates.has(new Date(cursor.getTime() - cursor.getTimezoneOffset() * 60000).toISOString().slice(0, 10))) {
+      count++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return count;
   }
 
+  const subjectLabel = { math: "🔢 数学", physics: "⚡ 物理", english: "🔤 英语" };
+  const rows = completed.slice(0, 50).map(r => {
+    const label = subjectLabel[r.subject] || r.subject;
+    return `<tr><td>${r.date}</td><td>${label}</td><td>${r.correct || 0}/${r.total || 0}</td><td>${"⭐".repeat(r.stars || 0)}</td></tr>`;
+  }).join("");
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${profile.name || "宝宝"}的学习报告 — 元宝成长乐园</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #fff9f3; color: #403b46; padding: 24px; max-width: 800px; margin: auto; }
+  header { text-align: center; padding: 32px 0; border-bottom: 3px solid #f0e8d8; margin-bottom: 28px; }
+  header h1 { font-size: 32px; margin-bottom: 6px; }
+  header p { color: #807987; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .card { text-align: center; padding: 20px 12px; border-radius: 18px; border: 2px solid #f0e8d8; background: white; }
+  .card b { display: block; font-size: 26px; margin: 6px 0 2px; }
+  .card span { color: #807987; font-size: 13px; }
+  h2 { font-size: 20px; margin: 24px 0 12px; }
+  .bar { margin-bottom: 18px; }
+  .bar header { display: flex; justify-content: space-between; font-weight: 800; font-size: 14px; padding: 0; border: 0; margin-bottom: 6px; text-align: left; }
+  .bar-track { height: 12px; border-radius: 99px; background: #edf0ec; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: inherit; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 8px; border-bottom: 1px solid #f0e8d8; text-align: left; }
+  th { font-size: 13px; color: #807987; }
+  footer { text-align: center; margin-top: 36px; padding: 20px 0; color: #bbb; font-size: 12px; }
+  @media print { body { background: white; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌱 ${profile.name || "宝宝"}的学习报告</h1>
+  <p>${profile.age || "?"} 岁 · 导出时间 ${new Date().toLocaleString("zh-CN")}</p>
+</header>
+<section class="grid">
+  <div class="card"><span>📚 完成课程</span><b>${completed.length}</b></div>
+  <div class="card"><span>⭐ 收集星星</span><b>${totalStars}</b></div>
+  <div class="card"><span>🔥 连续天数</span><b>${streakDays()}</b></div>
+</section>
+<h2>📊 学科能力</h2>
+<div class="bar"><header><span>🔢 数学</span><span>${accuracy(mathRecords)}%</span></header><div class="bar-track"><div class="bar-fill" style="width:${accuracy(mathRecords)}%;background:#ff8d72"></div></div></div>
+<div class="bar"><header><span>⚡ 物理</span><span>${accuracy(physicsRecords)}%</span></header><div class="bar-track"><div class="bar-fill" style="width:${accuracy(physicsRecords)}%;background:#a58ae5"></div></div></div>
+<div class="bar"><header><span>🔤 英语</span><span>${accuracy(englishRecords)}%</span></header><div class="bar-track"><div class="bar-fill" style="width:${accuracy(englishRecords)}%;background:#75a7ed"></div></div></div>
+<h2>📝 课程记录</h2>
+<table>
+<thead><tr><th>日期</th><th>学科</th><th>成绩</th><th>星星</th></tr></thead>
+<tbody>${rows || "<tr><td colspan='4'>暂无记录</td></tr>"}</tbody>
+</table>
+<footer>元宝成长乐园 · 每天进步一点点 🌱</footer>
+</body>
+</html>`;
+}
+
+// ---- API 路由 ----
+async function handleApi(request, response, requestPath) {
+  // ---- 认证 ----
+  if (requestPath === "/api/auth/register" && request.method === "POST") {
+    const { username, password, childName, childAge } = await readJson(request);
+    if (!username || typeof username !== "string" || username.trim().length < 2) {
+      return sendJson(response, 400, { error: "用户名至少 2 个字符" });
+    }
+    if (!password || typeof password !== "string" || password.length < 4) {
+      return sendJson(response, 400, { error: "密码至少 4 个字符" });
+    }
+    if (!childName || typeof childName !== "string" || !childName.trim()) {
+      return sendJson(response, 400, { error: "请输入宝宝的小名" });
+    }
+    if (![3, 4, 5, 6].includes(childAge)) {
+      return sendJson(response, 400, { error: "宝宝年龄必须在 3–6 岁之间" });
+    }
+    // 检查用户名是否已存在
+    const exists = Object.values(persistedState.accounts).some(a => a.username === username.trim());
+    if (exists) {
+      return sendJson(response, 409, { error: "该用户名已被注册" });
+    }
+    const accountId = generateToken();
+    const salt = generateSalt();
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const today = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    persistedState.accounts[accountId] = {
+      username: username.trim(),
+      passwordHash: hashPassword(password, salt),
+      passwordSalt: salt,
+      createdAt: now.toISOString(),
+      profile: {
+        name: childName.trim().slice(0, 8),
+        age: childAge,
+        startedAt: today,
+        avatar: "🐣"
+      },
+      records: [],
+      schedule: { ...DEFAULT_SCHEDULE }
+    };
+    createSession(response, accountId);
+    await persistState();
+    return sendJson(response, 201, { accountId, profile: persistedState.accounts[accountId].profile });
+  }
+
+  if (requestPath === "/api/auth/login" && request.method === "POST") {
+    const { username, password } = await readJson(request);
+    if (!username || !password) {
+      return sendJson(response, 400, { error: "请输入用户名和密码" });
+    }
+    const entry = Object.entries(persistedState.accounts).find(([, a]) => a.username === username.trim());
+    if (!entry) {
+      return sendJson(response, 401, { error: "用户名或密码错误" });
+    }
+    const [accountId, account] = entry;
+    const hash = hashPassword(password, account.passwordSalt);
+    if (hash !== account.passwordHash) {
+      return sendJson(response, 401, { error: "用户名或密码错误" });
+    }
+    createSession(response, accountId);
+    return sendJson(response, 200, { accountId, profile: account.profile });
+  }
+
+  if (requestPath === "/api/auth/logout" && request.method === "POST") {
+    destroySession(request, response);
+    return sendJson(response, 200, { ok: true });
+  }
+
+  // ---- 会话校验（后续 API 均需登录） ----
+  const accountId = getAccountId(request);
+  if (!accountId || !persistedState.accounts[accountId]) {
+    return sendJson(response, 401, { error: "请先登录" });
+  }
+  const account = persistedState.accounts[accountId];
+
+  // ---- 用户状态 ----
+  if (requestPath === "/api/state" && request.method === "GET") {
+    return sendJson(response, 200, {
+      profile: account.profile,
+      records: account.records || [],
+      schedule: account.schedule || DEFAULT_SCHEDULE
+    });
+  }
+
+  // ---- 更新宝宝资料 ----
   if (requestPath === "/api/profile" && request.method === "PUT") {
     const profile = await readJson(request);
-    if (profile.id !== "main" || typeof profile.name !== "string" || ![3, 4, 5, 6].includes(profile.age)) {
-      return sendJson(response, 400, { error: "宝宝资料无效" });
+    if (typeof profile.name !== "string" || !profile.name.trim()) {
+      return sendJson(response, 400, { error: "宝宝小名无效" });
     }
-    persistedState.profile = profile;
+    if (![3, 4, 5, 6].includes(profile.age)) {
+      return sendJson(response, 400, { error: "宝宝年龄无效" });
+    }
+    account.profile = {
+      ...account.profile,
+      name: profile.name.trim().slice(0, 8),
+      age: profile.age,
+      avatar: profile.avatar || account.profile.avatar || "🐣"
+    };
     await persistState();
-    return sendJson(response, 200, profile);
+    return sendJson(response, 200, account.profile);
   }
 
+  // ---- 保存学习进度 ----
   if (requestPath === "/api/progress" && request.method === "PUT") {
     const record = await readJson(request);
     if (typeof record.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(record.date)) {
-      return sendJson(response, 400, { error: "学习记录无效" });
+      return sendJson(response, 400, { error: "学习记录日期无效" });
     }
-    const index = persistedState.records.findIndex(item => item.date === record.date);
-    if (index === -1) persistedState.records.push(record);
-    else persistedState.records[index] = record;
+    if (!["math", "physics", "english"].includes(record.subject)) {
+      return sendJson(response, 400, { error: "学科类型无效" });
+    }
+    if (!account.records) account.records = [];
+    // 同一日期 + 同一学科 = 同一记录
+    const index = account.records.findIndex(r => r.date === record.date && r.subject === record.subject);
+    if (index === -1) account.records.push(record);
+    else account.records[index] = record;
     await persistState();
     return sendJson(response, 200, record);
   }
 
+  // ---- 重置数据 ----
   if (requestPath === "/api/state" && request.method === "DELETE") {
-    persistedState = emptyState();
+    account.records = [];
+    account.profile.startedAt = new Date().toISOString().slice(0, 10);
     await persistState();
-    return sendJson(response, 200, persistedState);
+    return sendJson(response, 200, { profile: account.profile, records: [] });
+  }
+
+  // ---- 课表操作 ----
+  if (requestPath === "/api/schedule" && request.method === "GET") {
+    return sendJson(response, 200, account.schedule || DEFAULT_SCHEDULE);
+  }
+
+  if (requestPath === "/api/schedule" && request.method === "PUT") {
+    const schedule = await readJson(request);
+    if (typeof schedule !== "object" || schedule === null) {
+      return sendJson(response, 400, { error: "课表格式无效" });
+    }
+    const validSubjects = ["math", "physics", "english"];
+    for (const day of [0, 1, 2, 3, 4, 5, 6]) {
+      const subjects = schedule[String(day)] || schedule[day];
+      if (subjects && !Array.isArray(subjects)) {
+        return sendJson(response, 400, { error: `第 ${day} 天的课表格式无效` });
+      }
+      if (subjects && subjects.some(s => !validSubjects.includes(s))) {
+        return sendJson(response, 400, { error: `第 ${day} 天包含无效学科` });
+      }
+    }
+    account.schedule = {};
+    for (const day of [0, 1, 2, 3, 4, 5, 6]) {
+      const subjects = schedule[String(day)] || schedule[day] || [];
+      account.schedule[String(day)] = [...new Set(subjects)]; // 去重
+    }
+    await persistState();
+    return sendJson(response, 200, account.schedule);
+  }
+
+  // ---- 导出 HTML ----
+  if (requestPath === "/api/export/html" && request.method === "GET") {
+    const html = generateExportHtml(account);
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Disposition": "attachment; filename=\"yuanbao-report.html\"",
+      "Cache-Control": "no-store"
+    });
+    return response.end(html);
+  }
+
+  // ---- 列出账户（用于切换） ----
+  if (requestPath === "/api/accounts" && request.method === "GET") {
+    const list = Object.entries(persistedState.accounts).map(([id, acct]) => ({
+      accountId: id,
+      username: acct.username,
+      profileName: acct.profile?.name || "未设置",
+      profileAge: acct.profile?.age || 0
+    }));
+    return sendJson(response, 200, list);
   }
 
   sendJson(response, 404, { error: "Not Found" });
 }
 
+// ---- 创建服务器 ----
 const server = http.createServer(async (request, response) => {
   const requestPath = decodeURIComponent(request.url.split("?")[0]);
 
@@ -128,15 +423,18 @@ const server = http.createServer(async (request, response) => {
       return await handleApi(request, response, requestPath);
     } catch (error) {
       console.error(error);
-      if (!response.headersSent) sendJson(response, error.statusCode || 500, { error: error.message || "服务器错误" });
+      if (!response.headersSent) {
+        sendJson(response, error.statusCode || 500, { error: error.message || "服务器错误" });
+      }
       return;
     }
   }
 
+  // 静态文件
   const relativePath = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
   const filePath = path.resolve(root, relativePath);
 
-  if (!filePath.startsWith(`${root}${path.sep}`) && filePath !== root) {
+  if (!filePath.startsWith(root + path.sep) && filePath !== root) {
     response.writeHead(403);
     return response.end("Forbidden");
   }
@@ -157,5 +455,5 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`元宝成长乐园运行在 http://0.0.0.0:${port}`);
+  console.log("元宝成长乐园运行在 http://0.0.0.0:" + port);
 });

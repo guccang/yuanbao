@@ -722,6 +722,177 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   to { transform: translateY(0); }
 }
 
+/* ---- 登录/注册 ---- */
+.switch-link { margin-top: 18px; text-align: center; color: var(--muted); font-size: 14px; }
+.link-btn { border: 0; background: none; color: var(--green-dark); font-weight: 800; cursor: pointer; text-decoration: underline; }
+.error-msg { margin-top: 16px; padding: 12px 16px; border-radius: 15px; background: #fff0f0; color: #b33; font-size: 14px; text-align: center; }
+
+/* ---- 学科卡片 ---- */
+.subject-grid { display: grid; gap: 14px; margin-bottom: 24px; }
+.subject-card {
+  position: relative;
+  padding: 22px;
+  border: 3px solid white;
+  border-radius: 24px;
+  background: white;
+  box-shadow: var(--shadow-soft);
+  transition: transform .18s;
+}
+.subject-card:hover { transform: translateY(-2px); }
+.subject-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.subject-emoji { font-size: 28px; }
+.subject-label {
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--subject-soft, #eee);
+  color: var(--subject-color, #666);
+  font-size: 12px;
+  font-weight: 800;
+}
+.done-badge {
+  margin-left: auto;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: white;
+  font-size: 14px;
+  font-weight: 900;
+}
+.draft-badge {
+  margin-left: auto;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--yellow);
+  color: #8a6d14;
+  font-size: 16px;
+  font-weight: 900;
+}
+.subject-card h3 { margin: 0 0 5px; font-size: 20px; }
+.subject-card p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.subject-start-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 14px;
+  color: white;
+  background: var(--subject-color, var(--green));
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--subject-color, var(--green)) 70%, #000);
+  transition: transform .15s;
+}
+.subject-start-btn:hover { transform: translateY(-2px); }
+.subject-start-btn:active { transform: translateY(2px); }
+
+/* ---- 学科标签颜色 ---- */
+.subject-tag {
+  --tag-color: var(--green-dark);
+  --tag-soft: var(--green-soft);
+  --tag-text: var(--green-dark);
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 7px 12px;
+  border-radius: 99px;
+  color: var(--tag-text);
+  border: 1px solid color-mix(in srgb, var(--tag-color) 30%, transparent);
+  background: var(--tag-soft);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ---- 学习概念文字 ---- */
+.learn-concept { margin-top: 12px; color: var(--muted); font-size: 16px; line-height: 1.7; }
+
+/* ---- 课表页面 ---- */
+.schedule-list { display: grid; gap: 10px; margin-bottom: 24px; }
+.schedule-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid white;
+  border-radius: 20px;
+  background: rgba(255,255,255,.86);
+  box-shadow: var(--shadow-soft);
+}
+.schedule-today { border-color: var(--green); background: var(--green-soft); }
+.schedule-dow { font-weight: 800; font-size: 15px; }
+.schedule-dow small { display: block; color: var(--green-dark); font-size: 11px; }
+.schedule-subs { display: flex; flex-wrap: wrap; gap: 6px; }
+.schedule-subject-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.schedule-empty { color: var(--muted); font-size: 13px; }
+.schedule-edit-btn {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+.schedule-actions { margin-bottom: 10px; }
+.schedule-dialog-overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.25);
+  backdrop-filter: blur(4px);
+}
+.schedule-dialog {
+  width: min(90%, 400px);
+  padding: 26px;
+  border-radius: 26px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+.schedule-dialog h3 { margin: 0 0 18px; font-size: 20px; }
+.schedule-checkboxes { display: grid; gap: 12px; margin-bottom: 22px; }
+.schedule-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 800;
+}
+.schedule-checkbox:has(input:checked) {
+  border-color: var(--check-color, var(--green));
+  background: color-mix(in srgb, var(--check-color, var(--green)) 10%, white);
+}
+.schedule-checkbox input[type="checkbox"] { accent-color: var(--check-color, var(--green)); width: 20px; height: 20px; }
+.schedule-dialog-btns { display: flex; gap: 10px; }
+.schedule-dialog-btns button { flex: 1; }
+
+/* ---- 导航调整为 4 列 ---- */
+.nav { grid-template-columns: repeat(4, 1fr); }
+
 @media (min-width: 620px) {
   .app { padding-left: 30px; padding-right: 30px; }
   .lesson-card { padding: 30px; }
