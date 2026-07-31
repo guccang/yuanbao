@@ -62,7 +62,7 @@ flowchart LR
 | 庆祝徽章 | `showSuccessBadge(sound)` | 顶部弹出弹跳徽章，显示车辆 emoji、名称和祝贺文案 |
 | 合成音效 | `playFeedbackSound("correct", vehicle)` | 上行音阶（C₅-E₅-G₅）后接随机车辆主题音效（火车/消防车/警车/校车） |
 
-`SUCCESS_SOUNDS` 数组定义了四种车辆主题，每次答对随机选取一种。课程完成时调用 `playFeedbackSound("complete")` 播放四音阶（C₅-E₅-G₅-C₆）和 `celebrateWithParticles("complete", 24)` 全屏庆祝。`completionCelebrated` 标志防止重复渲染时再次触发特效。
+`SUCCESS_SOUNDS` 数组定义了四种车辆主题（火车/消防车/警车/校车），每条记录包含 `name`、`emoji`、`cheer` 文案和 `sound` 音效类型键。每次答对随机选取一种。课程完成时调用 `playFeedbackSound("complete")` 播放四音阶（C₅-E₅-G₅-C₆）和 `celebrateWithParticles("complete", 24)` 全屏庆祝。`completionCelebrated` 标志防止重复渲染时再次触发特效。
 
 ## 核心数据结构
 
@@ -110,6 +110,10 @@ classDiagram
         Feedback feedback
         boolean isReview
         boolean completionCelebrated
+    }
+    class Feedback {
+        boolean correct
+        string answer
     }
     class Lesson {
         number day

@@ -11,7 +11,7 @@
 | 层次 | 当前实现 | 依据 |
 | --- | --- | --- |
 | 页面与样式 | HTML5 与原生 CSS；页面挂载点为 `#app`，状态提示为 `#toast` | [`index.html`](../../index.html)、[`styles.css`](../../styles.css) |
-| 客户端 | 原生 JavaScript：内存状态、DOM 渲染、课程生成、Fetch 调用 | [`app.js`](../../app.js) |
+| 客户端 | 原生 JavaScript：内存状态、DOM 渲染、课程生成（7 套数学主题 × 24 个英语单词）、Fetch 调用 | [`app.js`](../../app.js) |
 | 浏览器能力 | Fetch、IndexedDB（旧数据迁移）、Web Speech API（英语发音）、Web Audio API（合成音效与车辆主题音效）、Vibration API（振动反馈） | [`app.js`](../../app.js) 的 `api`、迁移函数、`speak`、`playFeedbackSound`、`playVehicleSound`、`showAnswerEffect`、`celebrateWithParticles` |
 | 服务端 | Node.js CommonJS，仅使用内置 `http`、`fs`、`path` | [`server.js`](../../server.js) |
 | 持久化 | 进程内状态加一个 UTF-8 JSON 文件，默认 `data/yuanbao.json` | [`server.js`](../../server.js)、[`README.md`](../../README.md) |
@@ -33,6 +33,8 @@
 | [`compose.yaml`](../../compose.yaml) | 容器端口映射、`/data/yuanbao.json` 数据路径、健康检查与 `yuanbao-data` 卷 |
 | [`.codinghub/deploy.json`](../../.codinghub/deploy.json) | CodingHub 部署元数据：运行时、构建上下文、Compose 服务、容器端口与健康检查路径 |
 | [`deploy.sh`](../../deploy.sh) 与 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh) | 仓库根部署入口及其转发的 `deploy` / `stop` 操作 |
+| [`.codinghub/dev/Dockerfile`](../../.codinghub/dev/Dockerfile) | 开发容器镜像，与生产镜像共享 `node:22-alpine` 基础，仅设置 `NODE_ENV=development` |
+| [`.codinghub/dev/environment.json`](../../.codinghub/dev/environment.json) | 开发环境元数据：项目类型、验证命令、运行风险摘要 |
 | [`docs/codinghub/`](./) | 本组面向维护者的长期文档 |
 
 `data/` 是服务端首次写入时按需创建的运行时目录，不是当前仓库中的已提交目录，见 [`server.js`](../../server.js) 的 `persistState`。
