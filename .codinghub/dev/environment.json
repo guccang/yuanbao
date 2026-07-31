@@ -5,11 +5,12 @@
     "node --check app.js \u0026\u0026 node --check server.js",
     "set -eu; validation_data=/tmp/yuanbao-validation.json; PORT=18887 DATA_FILE=\"$validation_data\" node server.js \u003e/tmp/yuanbao-validation.log 2\u003e\u00261 \u0026 server_pid=$!; trap 'kill \"$server_pid\" 2\u003e/dev/null || true; wait \"$server_pid\" 2\u003e/dev/null || true; rm -f \"$validation_data\" \"$validation_data.tmp\"' EXIT; node -e \"setTimeout(async () =\u003e { try { const results = await Promise.all(['/','/styles.css','/app.js','/api/state'].map(async path =\u003e ({ path, response: await fetch('http://127.0.0.1:18887' + path) }))); if (results.some(({ response }) =\u003e !response.ok)) process.exit(1); const [html, css, js, state] = await Promise.all(results.map(({ response }) =\u003e response.text())); if (!html.includes('id=\\\"app\\\"') || !css.includes(':root') || !js.includes('DB_NAME') || !state.includes('\\\"records\\\"')) process.exit(1); } catch (error) { console.error(error); process.exit(1); } }, 300);\""
   ],
-  "summary": "镜像不安装依赖，因为项目没有依赖清单或锁文件，也没有编译步骤。验证命令先检查两个 JavaScript 文件的语法，再使用隔离的 `/tmp` 数据文件启动服务，检查首页、CSS、客户端脚本和状态 API 的响应及关键内容；不会写入项目工作树。",
+  "summary": "项目无 package.json 或依赖清单，无需 npm install。验证命令先检查两个 JS 文件的语法，再用隔离的 /tmp 数据文件启动服务，检查首页、CSS、客户端脚本和状态 API 的 HTTP 响应及关键内容，不写入项目工作树。开发 Dockerfile 与生产 Dockerfile 基础镜像一致（node:22-alpine），仅设置 NODE_ENV=development。",
   "risks": [
     "仓库没有自动化测试框架，当前验证仅覆盖语法与服务端静态资源/API 冒烟。",
     "IndexedDB 迁移、Web Speech API、触屏交互、无障碍焦点和视觉布局需在真实浏览器中人工验收。",
-    "服务端数据默认写入 `data/yuanbao.json`；开发时应通过 `DATA_FILE` 指向可丢弃位置，避免污染或覆盖本地数据。",
-    "项目未提供 Node.js 版本管理文件；方案依据现有生产 Dockerfile 选用 Node.js 22 Alpine。"
+    "服务端数据默认写入 data/yuanbao.json；开发时应通过 DATA_FILE 指向可丢弃位置，避免污染或覆盖本地数据。",
+    "项目未提供 Node.js 版本管理文件（.nvmrc / .node-version）；方案依据现有生产 Dockerfile 选用 Node.js 22 Alpine。",
+    "开发 Dockerfile 未安装 git 等辅助工具；CodingHub Bootstrap 容器已提供这些工具，无需在项目镜像中重复安装。"
   ]
 }
