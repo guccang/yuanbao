@@ -10,10 +10,10 @@
 
 | 层次 | 当前实现 | 依据 |
 | --- | --- | --- |
-| 页面与样式 | HTML5 与原生 CSS；页面挂载点为 `#app`，状态提示为 `#toast` | [`index.html`](../../index.html)、[`styles.css`](../../styles.css) |
-| 客户端 | 原生 JavaScript：内存状态管理、DOM 渲染、课程生成、Fetch API 调用、Web Audio 合成音效 | [`app.js`](../../app.js) |
+| 页面与样式 | HTML5 与原生 CSS；Vue 3 挂载点为 `#app`，Toast 提示为 `#app` 内 `.toast` 元素 | [`index.html`](../../index.html)、[`styles.css`](../../styles.css) |
+| 客户端框架 | Vue 3（Composition API，CDN 加载 `vue.global.prod.js`）：响应式状态管理、模板渲染、课程协调 | [`index.html`](../../index.html) 第 11 行引用 Vue 3 CDN；[`app.js`](../../app.js) 使用 `createApp`、`ref`、`reactive`、`computed`、`watch`、`onMounted` |
 | 学科模块 | 三个独立 JS 模块（数学/物理/英语），各自提供确定性课程生成 | [`modules/math.js`](../../modules/math.js)、[`modules/physics.js`](../../modules/physics.js)、[`modules/english.js`](../../modules/english.js) |
-| 浏览器能力 | Fetch、IndexedDB（旧数据迁移）、Web Speech API（英语发音）、Web Audio API（合成音效与车辆主题音效）、Vibration API（振动反馈） | [`app.js`](../../app.js) 的 `api`、`migrateLegacyState`、`speak`、`playFeedbackSound`、`playVehicleSound`、`showAnswerEffect` |
+| 浏览器能力 | Fetch、Web Speech API（英语发音）、Web Audio API（合成音效与车辆主题音效）、Vibration API（振动反馈） | [`app.js`](../../app.js) 的 `api`、`speak`、`playFeedbackSound`、`playVehicleSound` |
 | 服务端 | Node.js CommonJS，仅使用内置 `http`、`fs`、`path`、`crypto` 模块 | [`server.js`](../../server.js) |
 | 持久化 | 进程内状态加一个 UTF-8 JSON 文件，默认 `data/yuanbao.json`；写入采用临时文件 + rename 策略 | [`server.js`](../../server.js)、[`README.md`](../../README.md) |
 | 容器 | `node:22-alpine`、`node` 用户运行、Compose 命名卷 | [`Dockerfile`](../../Dockerfile)、[`compose.yaml`](../../compose.yaml) |
@@ -34,8 +34,8 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| [`index.html`](../../index.html) | HTML 外壳、移动端 viewport、加载样式与学科模块脚本 |
-| [`app.js`](../../app.js) | 客户端核心：状态管理、视图渲染、课程协调、答题交互、音效与庆祝特效、统计计算、API 访问、旧 IndexedDB 迁移 |
+| [`index.html`](../../index.html) | HTML 外壳、移动端 viewport、Vue 3 CDN 加载、加载样式与学科模块脚本 |
+| [`app.js`](../../app.js) | 客户端核心：Vue 3 Composition API 响应式状态、模板渲染、课程协调、答题交互、音效与庆祝特效、统计计算、API 访问 |
 | [`styles.css`](../../styles.css) | 视觉变量（CSS 自定义属性）、全局布局、组件样式、响应式、动效与粒子庆祝动画 |
 | [`server.js`](../../server.js) | HTTP 服务：静态文件分发、API 路由、账户注册/登录/登出、输入校验、会话管理、JSON 文件持久化、HTML 报告导出 |
 | [`modules/math.js`](../../modules/math.js) | 数学课程生成模块（10 套主题，5 个活动：数数/比多少/数字规律/形状或加法/综合挑战） |
@@ -54,11 +54,10 @@
 ## 主要入口
 
 1. 执行 `node server.js` 进入服务端入口；监听地址是 `0.0.0.0`，端口来自 `PORT`，默认 `8887`，见 [`server.js`](../../server.js)。
-2. 根路径 `/` 被映射为 [`index.html`](../../index.html)，页面依次加载 [`styles.css`](../../styles.css)、三个学科模块（`modules/math.js`、`modules/physics.js`、`modules/english.js`）和 [`app.js`](../../app.js)。
-3. [`app.js`](../../app.js) 末尾的 `init()` 先请求 `GET /api/state` 检测登录状态；已登录直接进入首页，未登录显示登录/注册页面；注册时宝宝小名输入框预填默认值 `"元宝"`。
-4. 旧 IndexedDB 迁移仅在服务端无资料且存在旧数据时触发；迁移完成后不自动删除旧数据库。
-5. 容器入口是 [`Dockerfile`](../../Dockerfile) 中的 `CMD ["node", "server.js"]`；Compose 通过环境变量提供端口并挂载数据卷，见 [`compose.yaml`](../../compose.yaml)。
-6. 部署编排入口是根目录的 [`deploy.sh`](../../deploy.sh)，它将命令转发给 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh)；服务名、容器端口和根路径健康检查在 [`.codinghub/deploy.json`](../../.codinghub/deploy.json) 中声明。
+2. 根路径 `/` 被映射为 [`index.html`](../../index.html)，页面依次加载 [`styles.css`](../../styles.css)、Vue 3（CDN）、三个学科模块（`modules/math.js`、`modules/physics.js`、`modules/english.js`）和 [`app.js`](../../app.js)。
+3. [`app.js`](../../app.js) 的 Vue 3 应用在 `onMounted` 中先请求 `GET /api/state` 检测登录状态；已登录直接进入首页，未登录显示登录/注册页面；注册时宝宝小名输入框预填默认值 `"元宝"`。
+4. 容器入口是 [`Dockerfile`](../../Dockerfile) 中的 `CMD ["node", "server.js"]`；Compose 通过环境变量提供端口并挂载数据卷，见 [`compose.yaml`](../../compose.yaml)。
+5. 部署编排入口是根目录的 [`deploy.sh`](../../deploy.sh)，它将命令转发给 [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh)；服务名、容器端口和根路径健康检查在 [`.codinghub/deploy.json`](../../.codinghub/deploy.json) 中声明。
 
 ## 文档导航
 

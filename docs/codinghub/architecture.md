@@ -9,14 +9,14 @@ flowchart LR
     User[儿童或监护人] --> Browser[浏览器]
     Browser --> HTML[index.html]
     HTML --> CSS[styles.css]
+    HTML --> Vue[Vue 3 CDN]
     HTML --> Math[modules/math.js]
     HTML --> Physics[modules/physics.js]
     HTML --> Eng[modules/english.js]
-    HTML --> Client[app.js]
+    HTML --> Client[app.js Vue 3 App]
     Client --> Speech[Web Speech API]
     Client --> Audio[Web Audio API 合成音效]
     Client --> Vibration[Vibration API]
-    Client --> Legacy[旧 IndexedDB]
     Client -->|HTTP JSON| API[server.js API]
     Browser -->|静态资源请求| Static[server.js 静态服务]
     API --> Memory[进程内 persistedState]
@@ -27,15 +27,15 @@ flowchart LR
     Deploy --> API
 ```
 
-资源加载、浏览器能力和 API 调用来自 [`index.html`](../../index.html) 与 [`app.js`](../../app.js)；学科模块（`modules/`）独立加载并挂载到 `window` 全局；服务端分派与文件写入来自 [`server.js`](../../server.js)。
+资源加载、浏览器能力和 API 调用来自 [`index.html`](../../index.html) 与 [`app.js`](../../app.js)；Vue 3 通过 CDN 加载，学科模块（`modules/`）独立加载并挂载到 `window` 全局；服务端分派与文件写入来自 [`server.js`](../../server.js)。
 
 ## 模块边界与依赖方向
 
 | 模块 | 对外职责 | 直接依赖 | 不负责 |
 | --- | --- | --- | --- |
-| HTML 壳 | 提供挂载节点并加载样式与脚本 | CSS、客户端脚本、学科模块 | 业务状态与 API |
+| HTML 壳 | 提供挂载节点并加载 Vue 3、样式与脚本 | CSS、Vue 3 CDN、客户端脚本、学科模块 | 业务状态与 API |
 | 学科模块 | 按年龄和天数确定性生成课程数据（5 活动/课） | 无（纯函数） | DOM 渲染、API 调用 |
-| 客户端应用 | 课程协调、状态管理、页面渲染、统计、数据调用、答题反馈、庆祝特效与合成音效 | DOM、Fetch、Web Speech、Web Audio、Vibration、学科模块、旧 IndexedDB | 权威持久化、静态资源传输 |
+| 客户端应用 | 课程协调、Vue 3 响应式状态管理、模板渲染、统计、数据调用、答题反馈、庆祝特效与合成音效 | DOM、Vue 3、Fetch、Web Speech、Web Audio、Vibration、学科模块 | 权威持久化、静态资源传输 |
 | HTTP 服务 | 静态文件分发、API 路由、账户认证、会话管理、最小输入校验 | Node.js 内置 `http`/`fs`/`path`/`crypto`、文件系统 | 课程生成、DOM 渲染 |
 | JSON 存储 | 保存多账户完整应用状态 | 本地文件系统 | 多用户隔离、查询、数据库事务 |
 | 部署层 | 构建镜像、配置端口与数据卷、健康检查 | Docker / Compose | 业务逻辑 |
@@ -46,22 +46,23 @@ flowchart LR
 
 ## 客户端内部职责
 
-`app.js` 是客户端核心文件，学科模块（`modules/`）负责课程数据生成。可按下列职责维护；这些分组不是实际的独立模块。
+`app.js` 是客户端核心文件（Vue 3 Composition API 应用），学科模块（`modules/`）负责课程数据生成。可按下列职责维护；这些分组不是实际的独立模块。
 
 | 分组 | 主要成员 | 作用 |
 | --- | --- | --- |
-| 状态管理 | `state`、`computeSubjectDays`、`streak`、`getTodaySubjects`、`completedTodaySubject`、`todayDraftSubject` | 管理视图和从记录计算状态 |
+| 响应式状态 | `ref`/`reactive` 声明的 ~30 个状态变量（`view`、`profile`、`records`、`schedule`、`lesson`、`activityIndex`、`answers`、`feedback` 等） | 管理视图和从记录计算状态 |
+| 计算属性 | `computed` 声明的 ~10 个派生值（`streakCount`、`todaySubjects`、`subjectLessonDays`、`currentActivity`、`totalActivities`、`progressPercent` 等） | 从响应式状态派生的统计与 UI 数据 |
 | 课程协调 | `loadSubjectModule`、`makeSubjectLesson`、`startSubjectLesson` | 按学科加载对应模块并生成课程 |
-| 视图与交互 | `render*`（共 10 个渲染函数）、`answerQuestion`、`nextActivity`、`exitLesson` | 用模板字符串渲染并处理点击 |
-| 反馈与庆祝 | `playFeedbackSound`、`playVehicleSound`、`audioTone`、`celebrateWithParticles`、`showSuccessBadge`、`showAnswerEffect`、`speak` | 合成音效、粒子动画、庆祝徽章和语音朗读 |
-| 数据适配 | `api`、`saveProfile`、`saveRecord`、`loadUserState`、`loadLegacyState`、`migrateLegacyState` | 访问服务端 API 及读取旧 IndexedDB |
-| 导航 | `nav`、`bindNavigation`、`render` | 底部导航栏与视图路由 |
+| 视图与交互 | Vue 模板中的 `v-if`/`v-for`/`@click` 绑定、`answerQuestion`、`nextActivity`、`exitLesson`、`navigate` | 条件渲染、列表渲染、事件处理 |
+| 反馈与庆祝 | `playFeedbackSound`、`playVehicleSound`、`audioTone`、`celebrateWithParticles`、`showSuccessBadge`、`speak` | 合成音效、粒子动画、庆祝徽章和语音朗读 |
+| 数据适配 | `api`、`saveProfile`、`saveRecord`、`loadUserState` | 访问服务端 API |
+| 导航 | `navItems` 计算属性、`navigate` 函数、底部导航栏模板 | 底部导航栏与视图路由 |
 
 上述成员均见 [`app.js`](../../app.js)。学科模块（`math.js`、`physics.js`、`english.js`）通过 `index.html` 的 `<script>` 标签加载到 `window` 全局，各自导出 `{THEMES/WORDS, generateLesson}` 接口。若未来拆分文件，是否引入模块加载或打包工具属于**待确认**，因为仓库目前没有对应配置。
 
 ## 庆祝反馈系统
 
-答对题目时，`showAnswerEffect` 协调三级反馈，全部通过 Web Audio API 合成，无需外部音频文件（见 [`app.js`](../../app.js)）：
+答对题目时，客户端协调三级反馈，全部通过 Web Audio API 合成，无需外部音频文件（见 [`app.js`](../../app.js)）：
 
 | 反馈层级 | 实现函数 | 效果 |
 | --- | --- | --- |
@@ -119,12 +120,12 @@ classDiagram
         string accountId
         number createdAt
     }
-    class ClientState {
+    class ClientReactiveState {
+        string view
         string accountId
         Profile profile
         ProgressRecord[] records
         object schedule
-        string view
         number selectedAge
         string selectedSubject
         Lesson lesson
@@ -133,12 +134,16 @@ classDiagram
         Feedback feedback
         boolean isReview
         boolean completionCelebrated
-        string[] todaySubjects
-        object subjectLessonDays
+        boolean answerDisabled
+        string answerChosen
+        boolean answerCorrect
+        object editDialog
     }
     class Feedback {
         boolean correct
         string answer
+        string chosen
+        object sound
     }
     class Lesson {
         string subject
@@ -172,9 +177,9 @@ classDiagram
     Account "1" o-- "0..*" ProgressRecord
     Account "1" o-- "1" Schedule
     ProgressRecord "1" o-- "0..*" Answer
-    ClientState "1" o-- "0..1" Profile
-    ClientState "1" o-- "0..*" ProgressRecord
-    ClientState "1" o-- "0..1" Lesson
+    ClientReactiveState "1" o-- "0..1" Profile
+    ClientReactiveState "1" o-- "0..*" ProgressRecord
+    ClientReactiveState "1" o-- "0..1" Lesson
     Lesson "1" o-- "5" Activity
     Activity "0..1" --> "1" Word
     Activity "0..1" --> "0..*" Word
@@ -185,7 +190,7 @@ classDiagram
 | 未完成断点 | `date`、`subject`、`day`、`completed: false`、`activityIndex`、`answers`、`total`、`updatedAt` | `answerQuestion` |
 | 已完成汇总 | `date`、`subject`、`day`、`completed: true`、`correct`、`total`、`stars`、`answers`、`completedAt` | `nextActivity` |
 
-`Activity.options` 的元素在数学活动中是数字字符串、在英语活动中是单词字符串；带图片选项的英语活动另有 `word` 与 `pictureOptions`。`ClientState` 中的 `lesson`、`activityIndex`、`answers`、`feedback`、`isReview` 和 `completionCelebrated` 仅在客户端内存中存在，不写入服务端持久化状态，见 [`app.js`](../../app.js)。
+`Activity.options` 的元素在数学活动中是数字字符串、在英语活动中是单词字符串；带图片选项的英语活动另有 `word` 与 `pictureOptions`。`ClientReactiveState` 中的 `lesson`、`activityIndex`、`answers`、`feedback`、`isReview`、`completionCelebrated`、`answerDisabled`、`answerChosen`、`answerCorrect` 和 `editDialog` 仅在客户端内存中存在，不写入服务端持久化状态，见 [`app.js`](../../app.js)。
 
 ## API 与持久化边界
 
@@ -221,7 +226,7 @@ classDiagram
 | 周五（5） | 物理、数学 |
 | 周六（6） | 英语 |
 
-课表通过 `GET /api/schedule` 读取、`PUT /api/schedule` 更新，客户端可逐日编辑并可选恢复默认值，见 [`server.js`](../../server.js) 与 [`app.js`](../../app.js) 的 `renderSchedule`、`editScheduleDay`。
+课表通过 `GET /api/schedule` 读取、`PUT /api/schedule` 更新，客户端可逐日编辑并可选恢复默认值，见 [`server.js`](../../server.js) 与 [`app.js`](../../app.js) 的 `openEditDialog`、`saveEditDialog`、`resetSchedule`。
 
 ## 相关文档
 

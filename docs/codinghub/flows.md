@@ -4,15 +4,14 @@
 
 ## 启动与初始化
 
-服务端启动时读取 `SOURCE_DIR`、`PORT`、`DATA_FILE`，调用 `loadState()` 尝试读取 JSON；文件不存在或读取/解析失败时使用空状态。浏览器加载页面后，`app.js` 的 `init()` 请求 `/api/state` 检测登录状态，根据结果选择登录页、注册页或首页。注册页的宝宝小名输入框预填默认值 `"元宝"`（见 [`app.js`](../../app.js) 的 `renderRegister`）。依据为 [`server.js`](../../server.js) 和 [`app.js`](../../app.js)。
+服务端启动时读取 `SOURCE_DIR`、`PORT`、`DATA_FILE`，调用 `loadState()` 尝试读取 JSON；文件不存在或读取/解析失败时使用空状态。浏览器加载页面后，Vue 3 应用在 `onMounted` 中请求 `/api/state` 检测登录状态，根据结果选择登录页、注册页或首页。注册页的宝宝小名输入框预填默认值 `"元宝"`（见 [`app.js`](../../app.js) 的 `regChildName`）。依据为 [`server.js`](../../server.js) 和 [`app.js`](../../app.js)。
 
 ```mermaid
 sequenceDiagram
     participant B as 浏览器
-    participant A as app.js
+    participant V as Vue 3 App (app.js)
     participant S as server.js
     participant F as JSON 文件
-    participant I as 旧 IndexedDB
 
     S->>F: 启动时读取 DATA_FILE
     alt 文件有效
@@ -22,25 +21,19 @@ sequenceDiagram
     end
     B->>S: GET /
     S-->>B: index.html
-    B->>S: 依次请求 styles.css、modules/*.js、app.js
+    B->>S: 依次请求 styles.css、vue.global.prod.js、modules/*.js、app.js
     S-->>B: 静态资源
-    A->>A: DOMContentLoaded → init()
-    A->>S: GET /api/state
+    V->>V: Vue 3 createApp → onMounted
+    V->>S: GET /api/state
     alt 已登录（会话有效）
-        S-->>A: 当前账户完整状态
-        A->>A: 写入 state 并渲染首页
+        S-->>V: 当前账户完整状态
+        V->>V: 填充响应式状态并渲染首页
     else 未登录（401）
-        alt 存在旧 IndexedDB 数据
-            A->>I: 读取旧 profile 与 progress
-            I-->>A: 旧数据
-            A->>A: 渲染注册页（预填旧小名）
-        else 无旧数据
-            A->>A: 渲染登录页
-        end
+        V->>V: 渲染登录页（view = "login"）
     end
 ```
 
-旧 IndexedDB 迁移仅在服务端无资料且存在旧数据时触发；迁移时将旧数据通过 `PUT /api/profile` 和 `PUT /api/progress` 写入服务端，迁移完成后不自动删除旧数据库。仅用户执行"清除全部学习数据"时客户端会删除该 IndexedDB，见 [`app.js`](../../app.js) 的 `init`、`loadLegacyState`、`resetData`。
+旧版应用曾依赖浏览器 IndexedDB 存储数据，Vue 3 重构后不再包含 IndexedDB 迁移逻辑。当前客户端仅通过服务端 API 读写数据，见 [`app.js`](../../app.js) 的 `onMounted`、`loadUserState`。仅用户执行"清除全部学习数据"时客户端会尝试删除旧 IndexedDB（`indexedDB.deleteDatabase`），见 `resetData`。
 
 ## 认证流程
 
@@ -111,7 +104,7 @@ flowchart TD
 
 ## 答题反馈与庆祝流程
 
-每次答题后，客户端触发多级反馈；所有音效通过 Web Audio API 合成，不依赖外部音频文件。答对时随机选择车辆主题（火车/消防车/警车/校车），见 [`app.js`](../../app.js) 的 `SUCCESS_SOUNDS`、`showAnswerEffect`、`playFeedbackSound`、`playVehicleSound`。
+每次答题后，客户端触发多级反馈；所有音效通过 Web Audio API 合成，不依赖外部音频文件。答对时随机选择车辆主题（火车/消防车/警车/校车），见 [`app.js`](../../app.js) 的 `SUCCESS_SOUNDS`、`playFeedbackSound`、`playVehicleSound`。
 
 ```mermaid
 sequenceDiagram
@@ -140,7 +133,7 @@ sequenceDiagram
     A->>A: nextActivity 推进到下一活动
 ```
 
-课程完成时，`renderComplete` 在首次渲染时触发完成庆祝，`completionCelebrated` 标志防止重复：
+课程完成时，`nextActivity` 检测到 `activityIndex >= activities.length` 后跳转到 `view = "complete"`，Vue 模板在首次渲染时触发完成庆祝，`completionCelebrated` 标志防止重复：
 
 ```mermaid
 flowchart TD
@@ -159,7 +152,7 @@ flowchart TD
     Done --> OfferNext[展示剩余今日学科，可继续学习]
 ```
 
-英语发音使用浏览器的 `speechSynthesis`、`en-US` 语言（rate 0.72、pitch 1.08）；不支持时只显示 toast 提示，学习可继续。答对和完成课程还会尽力调用 Web Audio API 与 `navigator.vibrate` 提供反馈；这些能力不可用或播放失败时不会中断答题流程，见 [`app.js`](../../app.js) 的 `speak`、`playFeedbackSound`、`showAnswerEffect`、`renderComplete`。
+英语发音使用浏览器的 `speechSynthesis`、`en-US` 语言（rate 0.72、pitch 1.08）；不支持时只显示 toast 提示，学习可继续。答对和完成课程还会尽力调用 Web Audio API 与 `navigator.vibrate` 提供反馈；这些能力不可用或播放失败时不会中断答题流程，见 [`app.js`](../../app.js) 的 `speak`、`playFeedbackSound`、`answerQuestion`、`nextActivity`。
 
 ## 服务端写入
 
@@ -184,12 +177,12 @@ sequenceDiagram
 
 请求体限制为 1 MiB。`saveQueue` 避免同一进程内的文件写入交叉；写入的是完整快照而非增量日志，见 [`server.js`](../../server.js) 的 `MAX_BODY_SIZE`、`readJson`、`persistState`。
 
-客户端只有在 `PUT /api/progress` 成功后才将该记录合并进 `state.records`；答题断点写入失败时会保留当前页面上的答题反馈并显示 toast 提示。完成页保存没有单独的 `try/catch`，因此保存失败时会由该异步事件处理的异常表现决定，是否有统一的全局错误捕获属于**待确认**；相关实现见 [`app.js`](../../app.js) 的 `saveRecord`、`answerQuestion`、`nextActivity`。
+客户端只有在 `PUT /api/progress` 成功后才将该记录合并进 `records.value`；答题断点写入失败时会保留当前页面上的答题反馈并显示 toast 提示。完成页保存没有单独的 `try/catch`，因此保存失败时的行为由该异步事件处理的异常表现决定，是否有统一的全局错误捕获属于**待确认**；相关实现见 [`app.js`](../../app.js) 的 `saveRecord`、`answerQuestion`、`nextActivity`。
 
 ## 统计与导出
 
-- 首页从完成记录计算课程数、连续天数和近七天打卡；当日未完成记录决定进度条，见 [`app.js`](../../app.js) 的 `streak`、`renderWeek`、`renderHome`。
-- 成长页统计三个学科（数学/物理/英语）的完成课程数、正确率和星星数，并最多展示最近 10 节，见 [`app.js`](../../app.js) 的 `renderProgress`。
+- 首页从完成记录计算课程数、连续天数和近七天打卡；当日未完成记录决定进度条，见 [`app.js`](../../app.js) 的 `streak`、`weekDays`、首页模板。
+- 成长页统计三个学科（数学/物理/英语）的完成课程数、正确率和星星数，并最多展示最近 10 节，见 [`app.js`](../../app.js) 的 `subjectStats`、`historyItems`。
 - 导出功能生成独立 HTML 报告：包含统计卡片（完成课程数/星星数/连续天数）、学科能力条形图和最近 50 条课程记录表，见 [`server.js`](../../server.js) 的 `generateExportHtml`。
 - 清除操作需浏览器确认；之后 `DELETE /api/state` 重置记录和开始日期，删除旧 IndexedDB 并刷新，见 [`app.js`](../../app.js) 的 `resetData` 和 [`server.js`](../../server.js)。
 
@@ -207,7 +200,7 @@ sequenceDiagram
     A->>S: PUT /api/schedule（完整 7 天课表）
     S->>S: 校验 7 天键值并去重
     S-->>A: 200 与更新后的课表
-    A->>A: 更新 state.schedule 并重新渲染
+    A->>A: 更新 schedule.value 并重新渲染
     A->>A: 显示 toast 确认
 ```
 

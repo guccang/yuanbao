@@ -48,7 +48,7 @@ node --check modules/physics.js
 node --check modules/english.js
 ```
 
-启动服务后，执行只读冒烟检查（含新增的学科模块路径）：
+启动服务后，执行只读冒烟检查（含学科模块路径）：
 
 ```bash
 curl -f http://127.0.0.1:8887/
@@ -84,7 +84,6 @@ curl -f http://127.0.0.1:8887/api/state
 - 检查英语发音、答题音效与振动反馈在可用时生效，并在浏览器不支持时仍可继续学习。
 - 答对题目时检查：彩带粒子（30 个）从中心扩散、庆祝徽章弹出并显示随机车辆主题文案、合成音效播放（上行音阶 + 车辆主题音）。
 - 课程完成时检查：奖牌页面、全屏粒子庆祝（24 个）、四音阶完成音效、三段式振动。
-- 在服务端空状态且浏览器含旧 IndexedDB 数据时检查迁移。
 - 课表编辑：逐日编辑学科组合、恢复默认课表。
 - 检查窄屏、安全区、键盘焦点和清除数据确认流程。
 - 检查 `prefers-reduced-motion: reduce` 时动画是否被禁用。
@@ -96,7 +95,7 @@ curl -f http://127.0.0.1:8887/api/state
 
 | 现象 | 优先检查 | 依据 |
 | --- | --- | --- |
-| 页面显示"暂时无法打开" | `/api/state` 响应、服务端控制台、数据文件可读性 | [`app.js`](../../app.js) 的 `init`；[`server.js`](../../server.js) 的 `loadState` |
+| 页面显示"暂时无法打开" | `/api/state` 响应、服务端控制台、数据文件可读性 | [`app.js`](../../app.js) 的 `onMounted`、`loadUserState`；[`server.js`](../../server.js) 的 `loadState` |
 | 登录/注册失败 | 用户名长度 ≥2、密码长度 ≥4、年龄 3–6、Cookie 设置 | [`server.js`](../../server.js) 的 `/api/auth/register` 和 `/api/auth/login` |
 | 重启后资料或进度丢失 | `DATA_FILE` 的实际值、父目录写权限、容器是否挂载 `/data` | [`server.js`](../../server.js)、[`compose.yaml`](../../compose.yaml) |
 | 学科模块加载失败（404） | 生产镜像是否包含 `modules/` 目录、`index.html` 的 `<script>` 标签顺序 | [`Dockerfile`](../../Dockerfile)、[`index.html`](../../index.html) |
@@ -107,7 +106,8 @@ curl -f http://127.0.0.1:8887/api/state
 | 容器健康检查失败 | 注入端口是否一致、根路径是否返回成功状态 | [`compose.yaml`](../../compose.yaml) |
 | 部署脚本立即退出 | 部署环境是否提供脚本要求的 `CODINGHUB_*` 变量 | [`.codinghub/deploy.sh`](../../.codinghub/deploy.sh) |
 | 课程内容不完整 | 学科模块是否通过 `window` 全局正确暴露、`loadSubjectModule` 返回值 | [`app.js`](../../app.js) 的 `loadSubjectModule`、`makeSubjectLesson` |
-| 课表页面异常 | `schedule` 对象键值格式、默认值回退 | [`app.js`](../../app.js) 的 `renderSchedule`、[`server.js`](../../server.js) 的 `DEFAULT_SCHEDULE` |
+| Vue 3 未加载或报错 | Vue CDN URL 是否可访问、浏览器控制台错误、`#app` 挂载点是否存在 | [`index.html`](../../index.html) 第 11 行 Vue 3 CDN 引用、第 14 行 `#app` 容器 |
+| 课表页面异常 | `schedule` 对象键值格式、默认值回退 | [`app.js`](../../app.js) 的 `schedule` 响应式变量、`openEditDialog`、[`server.js`](../../server.js) 的 `DEFAULT_SCHEDULE` |
 
 ## 常见风险
 
@@ -116,7 +116,8 @@ curl -f http://127.0.0.1:8887/api/state
 | 单进程文件存储 | 多账户状态在同一进程内存与单 JSON 文件中 | 不要在共享同一数据文件时横向扩容；扩容前先设计用户边界和共享存储 |
 | API 认证范围 | 除认证接口外，其他 API 需 Cookie 会话；会话令牌为随机 32 字节 hex | 仅部署在受控边界；公开访问前补 CSRF 防护和速率限制 |
 | 进度校验较弱 | 服务端仅验证进度 `date` 和 `subject`，其他字段由客户端维持 | 增加字段白名单、长度和嵌套结构校验 |
-| HTML 注入 | 资料名称和记录内容经模板字符串进入 `innerHTML` | 外部数据应使用 `textContent` 或统一转义 |
+| Vue 3 CDN 外部依赖 | 应用运行时依赖 unpkg CDN 加载 Vue 3；内网或无网络环境无法加载 | 考虑将 Vue 3 打包进项目或使用本地 fallback |
+| HTML 注入 | 资料名称和记录内容经 Vue 模板绑定进入 DOM（Vue 3 默认转义，但 `v-html` 或 `innerHTML` 仍可注入） | 外部数据应避免使用 `v-html` 或直接操作 `innerHTML` |
 | 本地日期依赖 | 天数、同日记录和连续打卡按浏览器本地时间计算 | 覆盖跨时区、夏令时与改系统时钟场景；统一时间语义前标为**待确认** |
 | 异常数据文件 | 读取失败会使用空内存状态，后续保存可能覆盖原文件 | 对生产卷做备份并监控读取错误；考虑阻止对解析失败文件的覆盖 |
 | 自动化覆盖缺失 | 当前只有手动命令和人工验收建议 | 优先补 API 集成测试，再覆盖课程确定性和统计函数 |
