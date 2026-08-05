@@ -920,3 +920,207 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* ======================== Vue 过渡动画 ======================== */
+.page-enter-active {
+  animation: page-in .3s cubic-bezier(.16, .8, .3, 1);
+}
+.page-leave-active {
+  animation: page-out .2s cubic-bezier(.55, 0, .8, .16);
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes page-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* ======================== 加载状态 ======================== */
+.primary-btn:disabled, .secondary-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ======================== 滚动条美化 ======================== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 99px; background: #d5d0d0; }
+::-webkit-scrollbar-thumb:hover { background: #bbb5b5; }
+
+/* ======================== 选中文本 ======================== */
+::selection { background: rgba(85, 185, 139, .22); color: var(--ink); }
+
+/* ======================== 按钮悬停增强 ======================== */
+.primary-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+.primary-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+.secondary-btn:not(:disabled):hover {
+  background: #faf8f6;
+  border-color: #d5cdc8;
+}
+.secondary-btn:not(:disabled):active {
+  transform: translateY(2px);
+}
+
+/* ======================== 表单输入增强 ======================== */
+.field input:focus {
+  border-color: var(--green);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(85, 185, 139, .10);
+}
+.field input:hover:not(:focus) {
+  border-color: #d5cdc8;
+}
+
+/* ======================== 课表对话框增强 ======================== */
+.schedule-dialog-overlay {
+  animation: overlay-in .2s ease-out;
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.schedule-dialog {
+  animation: dialog-in .25s cubic-bezier(.16, .8, .3, 1.1);
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: scale(.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ======================== Toast 增强 ======================== */
+.toast {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .02em;
+  box-shadow: 0 8px 24px rgba(37, 51, 47, .22);
+}
+
+/* ======================== 主页学科卡片增强 ======================== */
+.subject-card {
+  cursor: default;
+}
+.subject-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(101, 83, 96, .12);
+}
+.subject-card:active {
+  transform: translateY(0);
+}
+
+/* ======================== 历史记录条目增强 ======================== */
+.history-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(101, 83, 96, .10);
+}
+.history-item {
+  transition: transform .15s, box-shadow .15s;
+}
+
+/* ======================== 设置按钮增强 ======================== */
+.profile-card .secondary-btn {
+  margin-top: 10px;
+}
+.profile-card .secondary-btn:first-of-type {
+  margin-top: 18px;
+}
+.profile-card .danger-btn:hover {
+  background: #ffebea;
+}
+
+/* ======================== 连续打卡徽章响应式 ======================== */
+.streak-card {
+  transition: transform .2s, box-shadow .2s;
+}
+.streak-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(101, 83, 96, .12);
+}
+
+/* ======================== 课程进度动画 ======================== */
+.step-progress i {
+  transition: width .45s cubic-bezier(.22, .9, .35, 1);
+}
+
+/* ======================== 星期条响应式文字 ======================== */
+.day span {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: .6;
+}
+.day.today span {
+  opacity: 1;
+  color: var(--orange);
+}
+
+/* ======================== 错误信息增强 ======================== */
+.error-msg {
+  box-shadow: 0 2px 8px rgba(187, 51, 51, .08);
+}
+
+/* ======================== 导航栏点击反馈 ======================== */
+.nav button:not(.active):hover {
+  color: var(--ink);
+  background: #f5f2ee;
+}
+.nav button:not(.active):active {
+  background: #eeebe7;
+}
+
+/* ======================== 课表行悬停 ======================== */
+.schedule-row:hover {
+  background: rgba(255,255,255,.94);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(101, 83, 96, .08);
+}
+.schedule-row {
+  transition: transform .15s, box-shadow .15s, background .15s;
+}
+.schedule-today:hover {
+  background: color-mix(in srgb, var(--green-soft) 94%, white);
+}
+
+/* ======================== 完成页面勋章动画 ======================== */
+.medal {
+  animation: medal-float 3s ease-in-out infinite;
+}
+@keyframes medal-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ======================== 课表编辑对话框开关样式 ======================== */
+.schedule-checkbox {
+  transition: border-color .15s, background .15s;
+}
+.schedule-checkbox:hover {
+  border-color: #d5cdc8;
+}
+
+/* ======================== App 整体过渡 ======================== */
+.app > * {
+  animation: fade-up .3s cubic-bezier(.16, .8, .3, 1);
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ======================== 加载骨架屏 ======================== */
+.skeleton {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f0ece8 25%, #e8e2dd 50%, #f0ece8 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

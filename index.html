@@ -8,10 +8,339 @@
   <title>元宝成长乐园</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
-  <div id="app" class="app" aria-live="polite"></div>
-  <div id="toast" class="toast" role="status"></div>
+  <div id="app">
+    <!-- Toast -->
+    <div class="toast" :class="{ show: toastVisible }" role="status">{{ toastMessage }}</div>
+
+    <!-- ==================== 登录 ==================== -->
+    <main v-if="view === 'login'" class="onboarding">
+      <div class="onboarding-art">🌱</div>
+      <h1>元宝成长乐园</h1>
+      <p>数学 · 物理 · 英语<br>专为 3–6 岁宝宝设计</p>
+      <form class="form-card" @submit.prevent="handleLogin(loginUsername, loginPassword)">
+        <label class="field">用户名
+          <input v-model="loginUsername" maxlength="20" placeholder="家长用户名" autocomplete="username" required>
+        </label>
+        <label class="field">密码
+          <input v-model="loginPassword" type="password" maxlength="32" placeholder="登录密码" autocomplete="current-password" required>
+        </label>
+        <button class="primary-btn green" type="submit" :disabled="loading">{{ loading ? '登录中...' : '登录' }}</button>
+        <p class="switch-link">还没有账户？<button type="button" class="link-btn" @click="view = 'register'">注册新账户 →</button></p>
+      </form>
+      <p class="error-msg" v-if="authError">{{ authError }}</p>
+    </main>
+
+    <!-- ==================== 注册 ==================== -->
+    <main v-else-if="view === 'register'" class="onboarding">
+      <div class="onboarding-art">🌱</div>
+      <h1>创建新账户</h1>
+      <p>为宝宝开启成长之旅</p>
+      <form class="form-card" @submit.prevent="handleRegister(regUsername, regPassword, regChildName, selectedAge)">
+        <label class="field">家长用户名
+          <input v-model="regUsername" maxlength="20" placeholder="用于登录" autocomplete="off" required>
+        </label>
+        <label class="field">登录密码
+          <input v-model="regPassword" type="password" maxlength="32" placeholder="至少 4 个字符" autocomplete="new-password" required>
+        </label>
+        <label class="field">宝宝的小名
+          <input v-model="regChildName" maxlength="8" placeholder="例如：元宝" autocomplete="off" required>
+        </label>
+        <strong>宝宝几岁啦？</strong>
+        <div class="age-picker" role="group" aria-label="选择宝宝年龄">
+          <button v-for="age in [3,4,5,6]" :key="age" type="button" :class="{ active: selectedAge === age }" @click="selectedAge = age">{{ age }} 岁</button>
+        </div>
+        <button class="primary-btn green" type="submit" :disabled="loading">{{ loading ? '注册中...' : '一起出发吧 →' }}</button>
+        <p class="switch-link">已有账户？<button type="button" class="link-btn" @click="view = 'login'">返回登录 →</button></p>
+      </form>
+      <p class="error-msg" v-if="authError">{{ authError }}</p>
+    </main>
+
+    <!-- ==================== 已登录页面 ==================== -->
+    <template v-else-if="profile">
+      <!-- TopBar -->
+      <header v-if="['home','schedule','progress','profile'].includes(view)" class="topbar">
+        <div class="brand">
+          <span class="brand-mark">🌱</span>
+          <div><strong>元宝成长乐园</strong><small>每天进步一点点</small></div>
+        </div>
+        <button class="avatar" @click="navigate('profile')" aria-label="打开宝宝资料">{{ profile.avatar || "🐣" }}</button>
+      </header>
+
+      <!-- ==================== 首页 ==================== -->
+      <template v-if="view === 'home'">
+        <section class="hello">
+          <p class="eyebrow">{{ new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date()) }}</p>
+          <h1>{{ profile.name }}，准备好<br>今天的小冒险了吗？</h1>
+          <p>{{ todaySubjects.length }} 个学科 · 每科约 5 分钟</p>
+        </section>
+
+        <section class="streak-card">
+          <div class="streak-icon">{{ streakCount ? "🔥" : "🌟" }}</div>
+          <div>
+            <strong>{{ streakCount ? "连续学习 " + streakCount + " 天" : "今天开始打卡吧" }}</strong>
+            <p>{{ records.filter(r => r.completed).length ? "已经完成 " + records.filter(r => r.completed).length + " 节课，真了不起！" : "完成第一课，点亮宝宝的成长记录" }}</p>
+          </div>
+        </section>
+
+        <div class="section-heading"><h2>今日课程</h2><span>{{ todaySubjects.length ? "按课表安排" : "今日休息" }}</span></div>
+        <div class="subject-grid">
+          <template v-if="todaySubjects.length">
+            <div v-for="subj in todaySubjects" :key="subj" class="subject-card" :style="'--subject-color:' + SUBJECT_META[subj]?.color + ';--subject-soft:' + SUBJECT_META[subj]?.soft">
+              <div class="subject-card-header">
+                <span class="subject-emoji">{{ SUBJECT_META[subj]?.emoji }}</span>
+                <span class="subject-label">{{ SUBJECT_META[subj]?.label }}</span>
+                <span v-if="completedTodaySubject(records, subj)" class="done-badge">✓</span>
+                <span v-else-if="todayDraftSubject(records, subj)" class="draft-badge">⋯</span>
+              </div>
+              <h3>{{ completedTodaySubject(records, subj) ? "已完成 ✓" : makeSubjectLesson(subj, subjectLessonDays[subj] || 1, profile.age).title }}</h3>
+              <p>{{ completedTodaySubject(records, subj) ? "答对 " + completedTodaySubject(records, subj).correct + "/" + completedTodaySubject(records, subj).total + " 题" : SUBJECT_META[subj]?.desc }}</p>
+              <button class="subject-start-btn" @click="startSubjectLesson(subj, !!completedTodaySubject(records, subj))">
+                {{ completedTodaySubject(records, subj) ? "再练一次 ↻" : todayDraftSubject(records, subj) ? "继续学习 →" : "开始学习 →" }}
+              </button>
+            </div>
+          </template>
+          <div v-else class="empty">
+            <p>今天没有安排课程 📅<br>去「课表」页面设置今天的学习内容吧</p>
+          </div>
+        </div>
+
+        <div class="section-heading"><h2>本周打卡</h2><span>{{ records.filter(r => r.completed).length }} 节课已完成</span></div>
+        <div class="week-strip">
+          <div v-for="day in weekDays()" :key="day.key" class="day" :class="{ done: day.isDone, today: day.isToday }">
+            <span>{{ day.dayName }}</span>
+            <b>{{ day.isDone ? "✓" : day.dayNum }}</b>
+          </div>
+        </div>
+      </template>
+
+      <!-- ==================== 课程页面 ==================== -->
+      <template v-else-if="view === 'lesson' && lesson && currentActivity">
+        <header class="lesson-top">
+          <button class="icon-btn" @click="exitLesson" aria-label="退出课程">‹</button>
+          <div class="step-progress"><i :style="{ width: progressPercent + '%' }"></i></div>
+          <div class="step-count">{{ activityIndex + 1 }}/{{ totalActivities }}</div>
+        </header>
+        <main class="activity">
+          <span class="subject-tag" :style="{ '--tag-color': subjectMeta?.color, '--tag-soft': subjectMeta?.soft, '--tag-text': subjectMeta?.color }">
+            {{ subjectMeta?.emoji }} {{ subjectMeta?.label }}
+          </span>
+          <h1>{{ currentActivity.title }}</h1>
+          <p class="instruction">{{ currentActivity.hint }}</p>
+
+          <section class="prompt-card" ref="promptCard">
+            <!-- 学习型：带单词 -->
+            <template v-if="currentActivity.learn && currentActivity.word">
+              <div><div class="emoji-group">{{ currentActivity.visual }}</div><div class="big-word">{{ currentActivity.word.en }}</div><div class="word-meaning">{{ currentActivity.word.cn }}</div>
+                <button class="listen-btn" @click="speak(currentActivity.word.en)">🔊 听发音</button></div>
+            </template>
+            <!-- 学习型：无单词 -->
+            <template v-else-if="currentActivity.learn">
+              <div><div class="emoji-group">{{ currentActivity.visual }}</div><p class="learn-concept">{{ currentActivity.hint }}</p></div>
+            </template>
+            <!-- 英语听力 -->
+            <template v-else-if="currentActivity.subject === 'english' && currentActivity.visual === '🔊'">
+              <div><div class="emoji-group">🎧</div><button class="listen-btn" @click="speak(currentActivity.word?.en || '')">🔊 再听一遍</button></div>
+            </template>
+            <!-- 默认 -->
+            <template v-else>
+              <div class="emoji-group">{{ currentActivity.visual }}</div>
+            </template>
+          </section>
+
+          <div class="answers">
+            <template v-if="currentActivity.pictureOptions">
+              <button v-for="(opt, i) in currentActivity.pictureOptions" :key="i"
+                class="answer"
+                :disabled="answerDisabled"
+                :class="picAnswerClass(opt)"
+                @click="answerQuestion(picAnswerValue(opt))">
+                {{ picAnswerLabel(opt) }}
+              </button>
+            </template>
+            <template v-else>
+              <button v-for="(opt, i) in currentActivity.options" :key="i"
+                class="answer"
+                :disabled="answerDisabled"
+                :class="answerClass(opt)"
+                @click="answerQuestion(opt)">
+                {{ opt }}
+              </button>
+            </template>
+          </div>
+        </main>
+      </template>
+
+      <!-- ==================== 完成页面 ==================== -->
+      <template v-else-if="view === 'complete'">
+        <main class="celebrate">
+          <p class="eyebrow">{{ subjectMeta?.label }} · 课程完成</p>
+          <div class="medal">🏅</div>
+          <h1>{{ profile.name }}，太棒啦！</h1>
+          <p>{{ subjectMeta?.emoji }} {{ subjectMeta?.label }}能量收集完成<br>{{ remainingSubjects().length ? "还有 " + remainingSubjects().length + " 个学科等着你哦" : "今天的课程全部完成！" }}</p>
+          <div class="result-grid">
+            <div class="result"><b>{{ correctCount() }}/{{ totalActivities }}</b><span>答对题目</span></div>
+            <div class="result"><b>{{ Math.max(1, Math.round(correctCount() / 2)) }} ⭐</b><span>获得星星</span></div>
+            <div class="result"><b>{{ streakCount }} 天</b><span>连续学习</span></div>
+          </div>
+          <button v-for="s in remainingSubjects()" :key="s"
+            class="primary-btn" :style="{ marginBottom: '10px', background: SUBJECT_META[s]?.color, color: 'white', boxShadow: '0 6px 0 ' + SUBJECT_META[s]?.color + 'dd' }"
+            @click="startSubjectLesson(s, false)">
+            {{ SUBJECT_META[s]?.emoji }} 继续学{{ SUBJECT_META[s]?.label }} →
+          </button>
+          <button class="primary-btn green" @click="navigate('home')">回到首页</button>
+        </main>
+      </template>
+
+      <!-- ==================== 课表 ==================== -->
+      <template v-else-if="view === 'schedule'">
+        <p class="eyebrow">课程表</p>
+        <h1 class="page-title">每周学习计划</h1>
+        <p class="page-subtitle">点击 ✎ 编辑每天的学科安排</p>
+        <div class="schedule-list">
+          <div v-for="dow in [0,1,2,3,4,5,6]" :key="dow"
+            class="schedule-row"
+            :class="{ 'schedule-today': dow === new Date().getDay() }">
+            <div class="schedule-dow">{{ WEEKDAY_NAMES[dow] }}<small v-if="dow === new Date().getDay()">今天</small></div>
+            <div class="schedule-subs">
+              <template v-if="(schedule[String(dow)] || []).length">
+                <span v-for="s in (schedule[String(dow)] || [])" :key="s"
+                  class="schedule-subject-tag"
+                  :style="{ background: SUBJECT_META[s]?.soft, color: SUBJECT_META[s]?.color }">
+                  {{ SUBJECT_META[s]?.emoji }} {{ SUBJECT_META[s]?.label }}
+                </span>
+              </template>
+              <span v-else class="schedule-empty">休息日 🌟</span>
+            </div>
+            <button class="schedule-edit-btn" @click="openEditDialog(dow)" :aria-label="'编辑' + WEEKDAY_NAMES[dow] + '课表'">✎</button>
+          </div>
+        </div>
+        <div class="schedule-actions">
+          <button class="secondary-btn" @click="resetSchedule">恢复默认课表</button>
+        </div>
+      </template>
+
+      <!-- ==================== 成长 ==================== -->
+      <template v-else-if="view === 'progress'">
+        <p class="eyebrow">成长中心</p>
+        <h1 class="page-title">{{ profile.name }} 的成长足迹</h1>
+        <p class="page-subtitle">每一次尝试都值得被看见。</p>
+        <section class="stats-grid">
+          <div class="stat-card"><i>📚</i><b>{{ records.filter(r => r.completed).length }}</b><span>完成课程</span></div>
+          <div class="stat-card"><i>⭐</i><b>{{ records.filter(r => r.completed).reduce((s, r) => s + (r.stars || 0), 0) }}</b><span>收集星星</span></div>
+          <div class="stat-card"><i>🔥</i><b>{{ streakCount }}</b><span>连续天数</span></div>
+        </section>
+        <div class="section-heading"><h2>学科能力</h2><span>按答题正确率</span></div>
+        <section class="subject-progress">
+          <div v-for="s in ['math','physics','english']" :key="s" class="bar-row">
+            <header>
+              <span>{{ SUBJECT_META[s]?.emoji }} {{ SUBJECT_META[s]?.label }}</span>
+              <span>{{ subjectStats(s).count }} 课 · {{ subjectStats(s).accuracy }}%</span>
+            </header>
+            <div class="bar"><i :style="{ width: subjectStats(s).accuracy + '%', background: SUBJECT_META[s]?.color }"></i></div>
+          </div>
+        </section>
+        <div class="section-heading"><h2>课程记录</h2><span>最近 10 节</span></div>
+        <section class="history-list">
+          <template v-if="historyItems().length">
+            <article v-for="(r, i) in historyItems()" :key="i" class="history-item">
+              <div class="history-icon" :style="{ background: SUBJECT_META[r.subject]?.soft, color: SUBJECT_META[r.subject]?.color }">{{ SUBJECT_META[r.subject]?.emoji }}</div>
+              <div class="history-copy"><strong>{{ SUBJECT_META[r.subject]?.label }} · {{ makeSubjectLesson(r.subject, r.day || 1, profile.age).title }}</strong><small>{{ r.date }} · {{ r.correct || 0 }}/{{ r.total || 0 }} 题</small></div>
+              <div class="history-score">{{ "⭐".repeat(r.stars || 0) }}</div>
+            </article>
+          </template>
+          <div v-else class="empty">完成课程后，成长记录会出现在这里 🌱</div>
+        </section>
+      </template>
+
+      <!-- ==================== 我的 ==================== -->
+      <template v-else-if="view === 'profile'">
+        <p class="eyebrow">宝宝资料</p>
+        <h1 class="page-title">学习设置</h1>
+        <section class="profile-card">
+          <div class="profile-hero">
+            <div class="large-avatar">{{ profile.avatar || "🐣" }}</div>
+            <h2>{{ profile.name }}</h2>
+            <p>{{ profile.age }} 岁 · 已学习 {{ Math.max(...Object.values(subjectLessonDays)) || 1 }} 天</p>
+          </div>
+          <div class="section-heading"><h2>课程信息</h2></div>
+          <div class="setting-row"><div><strong>每日学科</strong><br><span>按课表自动安排</span></div><b>最多 3 科</b></div>
+          <div class="setting-row"><div><strong>课程难度</strong><br><span>依据年龄自动调整</span></div><b>{{ profile.age }} 岁阶段</b></div>
+          <div class="setting-row"><div><strong>数据保存</strong><br><span>安全保存在应用服务</span></div><b>已开启</b></div>
+          <button class="secondary-btn" @click="openEditProfile">✏️ 修改宝宝资料</button>
+          <button class="secondary-btn" @click="exportData">📥 导出学习报告 (HTML)</button>
+          <button class="secondary-btn" @click="logout">🚪 退出登录</button>
+          <button class="danger-btn" @click="resetData">清除全部学习数据</button>
+        </section>
+      </template>
+
+      <!-- ==================== 导航栏 ==================== -->
+      <nav v-if="['home','schedule','progress','profile'].includes(view)" class="nav" aria-label="主导航">
+        <button v-for="item in navItems" :key="item.id"
+          :class="{ active: view === item.id }"
+          :aria-current="view === item.id ? 'page' : undefined"
+          @click="navigate(item.id)">
+          <span>{{ item.icon }}</span>{{ item.label }}
+        </button>
+      </nav>
+    </template>
+
+    <!-- ==================== 课表编辑对话框 ==================== -->
+    <Teleport to="body">
+      <div v-if="editDialog.show" class="schedule-dialog-overlay" @click.self="closeEditDialog">
+        <div class="schedule-dialog">
+          <h3>编辑{{ WEEKDAY_NAMES[editDialog.dow] }}课表</h3>
+          <div class="schedule-checkboxes">
+            <label v-for="s in ['math','physics','english']" :key="s" class="schedule-checkbox" :style="'--check-color:' + SUBJECT_META[s]?.color">
+              <input type="checkbox" :checked="editDialog.selected.includes(s)" @change="toggleEditSubject(s)">
+              <span>{{ SUBJECT_META[s]?.emoji }} {{ SUBJECT_META[s]?.label }}</span>
+            </label>
+          </div>
+          <div class="schedule-dialog-btns">
+            <button class="secondary-btn" @click="closeEditDialog">取消</button>
+            <button class="primary-btn green" @click="saveEditDialog">保存</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== 编辑资料对话框 ==================== -->
+    <Teleport to="body">
+      <div v-if="showEditProfile" class="schedule-dialog-overlay" @click.self="showEditProfile = false">
+        <div class="schedule-dialog">
+          <h3>修改宝宝资料</h3>
+          <label class="field">宝宝小名
+            <input v-model="editName" maxlength="8" placeholder="宝宝的小名">
+          </label>
+          <strong>年龄</strong>
+          <div class="age-picker" role="group" aria-label="选择宝宝年龄">
+            <button v-for="age in [3,4,5,6]" :key="age" type="button" :class="{ active: editAge === age }" @click="editAge = age">{{ age }} 岁</button>
+          </div>
+          <div class="schedule-dialog-btns" style="margin-top:18px">
+            <button class="secondary-btn" @click="showEditProfile = false">取消</button>
+            <button class="primary-btn green" @click="saveEditProfile">保存</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== 答题反馈面板 ==================== -->
+    <Teleport to="body">
+      <div v-if="feedback" class="feedback-sheet" :class="feedbackCss">
+        <div class="feedback-inner">
+          <div class="feedback-face" :class="{ 'feedback-star': feedback.correct }">{{ feedback.correct ? "🌟" : "💪" }}</div>
+          <div class="feedback-copy">
+            <strong>{{ feedback.correct ? "答对啦，真棒！" : "差一点，也很棒！" }}</strong>
+            <span>{{ feedback.correct ? (feedback.sound?.cheer || "继续加油！") : "正确答案是 " + feedback.answer }}</span>
+          </div>
+          <button class="primary-btn green" @click="nextActivity">{{ activityIndex >= totalActivities - 1 ? "完成" : "继续 →" }}</button>
+        </div>
+      </div>
+    </Teleport>
+  </div>
+
   <script src="modules/math.js"></script>
   <script src="modules/physics.js"></script>
   <script src="modules/english.js"></script>
