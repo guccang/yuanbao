@@ -32,9 +32,48 @@ const DEFAULT_SCHEDULE = {
   6: ["english"]              // 周六
 };
 
+// ---- 登录频率限制 ----
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 分钟
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const rateLimitStore = new Map();
+
+function rateLimit(request) {
+  const ip = request.headers["x-forwarded-for"]?.split(",")[0]?.trim()
+    || request.socket?.remoteAddress
+    || "unknown";
+  const now = Date.now();
+  let entry = rateLimitStore.get(ip);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    entry = { windowStart: now, attempts: 0 };
+    rateLimitStore.set(ip, entry);
+  }
+  entry.attempts++;
+  if (entry.attempts > RATE_LIMIT_MAX_ATTEMPTS) {
+    return Math.ceil((RATE_LIMIT_WINDOW_MS - (now - entry.windowStart)) / 1000);
+  }
+  return 0;
+}
+
+function rateLimitReset(request) {
+  const ip = request.headers["x-forwarded-for"]?.split(",")[0]?.trim()
+    || request.socket?.remoteAddress
+    || "unknown";
+  rateLimitStore.delete(ip);
+}
+
+// 定期清理过期条目，防止内存泄漏
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitStore) {
+    if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+      rateLimitStore.delete(ip);
+    }
+  }
+}, 60000);
+
 // ---- 密码工具 ----
 function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
+  return crypto.pbkdf2Sync(password, salt, 310000, 64, "sha512").toString("hex");
 }
 
 function generateSalt() {
@@ -234,6 +273,11 @@ function generateExportHtml(account) {
 async function handleApi(request, response, requestPath) {
   // ---- 认证 ----
   if (requestPath === "/api/auth/register" && request.method === "POST") {
+    const retryAfter = rateLimit(request);
+    if (retryAfter > 0) {
+      response.setHeader("Retry-After", String(retryAfter));
+      return sendJson(response, 429, { error: "操作过于频繁，请 " + retryAfter + " 秒后再试" });
+    }
     const { username, password, childName, childAge } = await readJson(request);
     if (!username || typeof username !== "string" || username.trim().length < 2) {
       return sendJson(response, 400, { error: "用户名至少 2 个字符" });
@@ -271,12 +315,18 @@ async function handleApi(request, response, requestPath) {
       records: [],
       schedule: { ...DEFAULT_SCHEDULE }
     };
+    rateLimitReset(request);
     createSession(response, accountId);
     await persistState();
     return sendJson(response, 201, { accountId, profile: persistedState.accounts[accountId].profile });
   }
 
   if (requestPath === "/api/auth/login" && request.method === "POST") {
+    const retryAfter = rateLimit(request);
+    if (retryAfter > 0) {
+      response.setHeader("Retry-After", String(retryAfter));
+      return sendJson(response, 429, { error: "操作过于频繁，请 " + retryAfter + " 秒后再试" });
+    }
     const { username, password } = await readJson(request);
     if (!username || !password) {
       return sendJson(response, 400, { error: "请输入用户名和密码" });
@@ -290,6 +340,7 @@ async function handleApi(request, response, requestPath) {
     if (hash !== account.passwordHash) {
       return sendJson(response, 401, { error: "用户名或密码错误" });
     }
+    rateLimitReset(request);
     createSession(response, accountId);
     return sendJson(response, 200, { accountId, profile: account.profile });
   }

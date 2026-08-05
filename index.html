@@ -8,7 +8,7 @@
   <title>元宝成长乐园</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/vue@3.4/dist/vue.global.prod.js"></script>
 </head>
 <body>
   <div id="app">
@@ -152,7 +152,7 @@
 
           <div class="answers">
             <template v-if="currentActivity.pictureOptions">
-              <button v-for="(opt, i) in currentActivity.pictureOptions" :key="i"
+              <button v-for="(opt, i) in currentActivity.options" :key="i"
                 class="answer"
                 :disabled="answerDisabled"
                 :class="picAnswerClass(opt)"
