@@ -2110,6 +2110,183 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   margin: 0;
 }
 
+/* ======================== 沟通日志 ======================== */
+.comm-log-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 20px;
+  background: rgba(0,0,0,.03);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid #f0e8e0;
+}
+.comm-log-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  color: #807987;
+  cursor: pointer;
+  transition: all .2s;
+}
+.comm-log-tab.active {
+  background: white;
+  color: #403b46;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.comm-form-card {
+  background: rgba(255,255,255,.84);
+  border: 2px solid white;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+.comm-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #f0e8e0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.comm-form-week {
+  font-size: 18px;
+  font-weight: 800;
+  color: #403b46;
+}
+.comm-form-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 99px;
+  background: #f0e8e0;
+  color: #807987;
+}
+.comm-form-badge-new {
+  background: #e8f5ee;
+  color: #55b98b;
+}
+.comm-form-desc {
+  font-size: 13px;
+  color: #807987;
+  margin: -8px 0 14px;
+  line-height: 1.5;
+}
+.comm-rating {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+.comm-rating-btn {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #f0e8e0;
+  border-radius: 14px;
+  background: white;
+  font-size: 18px;
+  font-weight: 800;
+  color: #807987;
+  cursor: pointer;
+  transition: all .2s;
+}
+.comm-rating-btn.active {
+  border-color: #55b98b;
+  background: #e8f5ee;
+  color: #55b98b;
+  box-shadow: 0 2px 8px rgba(85,185,139,.2);
+}
+.comm-rating-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #bbb;
+  margin: 0 0 18px;
+}
+.comm-form-actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 2px solid #f0e8e0;
+}
+.comm-log-item {
+  background: rgba(255,255,255,.84);
+  border: 2px solid white;
+  border-radius: 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.comm-log-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.comm-log-week {
+  font-size: 16px;
+  font-weight: 800;
+  color: #403b46;
+}
+.comm-log-date {
+  font-size: 12px;
+  color: #bbb;
+}
+.comm-log-edit {
+  margin-left: auto;
+  border: 0;
+  background: #f0e8e0;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #807987;
+  cursor: pointer;
+}
+.comm-log-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.comm-log-stat {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 12px;
+  background: #f8f6f3;
+}
+.comm-log-stat strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+.comm-log-stat span {
+  font-size: 10px;
+  color: #807987;
+}
+.comm-log-sentences {
+  padding: 12px;
+  background: #f8f6f3;
+  border-radius: 12px;
+}
+.comm-log-sentences p {
+  font-size: 13px;
+  color: #807987;
+  line-height: 1.6;
+}
+.comm-log-sentence {
+  margin: 4px 0;
+  padding: 4px 8px;
+  background: white;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #403b46;
+}
+
 /* ======================== 情绪周报 - 暗色模式 ======================== */
 @media (prefers-color-scheme: dark) {
   .progress-tabs {

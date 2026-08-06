@@ -345,6 +345,18 @@ const app = createApp({
     const strategyRecords = ref([]);
     const strategyAnimating = ref(null);
     const strategyUsed = ref([]);
+    // 沟通日志
+    const communicationLogs = ref([]);
+    const communicationLogTab = ref("form"); // form | history
+    const communicationForm = reactive({
+      vocabulary: 0,
+      sentence1: '',
+      sentence2: '',
+      sentence3: '',
+      conversationTurns: 0,
+      narrativeScore: 3,
+      initiativeScore: 3
+    });
     // 策略互动详情
     const strategyDetail = reactive({
       show: false,
@@ -851,6 +863,7 @@ const app = createApp({
         schedule.value = saved.schedule || {};
         view.value = "home";
         selectedAge.value = saved.profile?.age || 4;
+        communicationLogs.value = saved.communicationLogs || [];
       } catch (err) {
         if (err.message.includes("401")) {
           view.value = "login";
@@ -1467,6 +1480,103 @@ const app = createApp({
     function emotionGameTotalGames() {
       return emotionGames.value.length;
     }
+
+    // ---- 沟通日志 ----
+    function getCurrentWeekId() {
+      const now = new Date();
+      const d = new Date(localDate(now));
+      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+      const weekNumber = Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7);
+      return d.getFullYear() + '-W' + String(weekNumber).padStart(2, '0');
+    }
+
+    function getCurrentWeekCommunicationLog() {
+      const weekId = getCurrentWeekId();
+      return communicationLogs.value.find(l => l.weekId === weekId) || null;
+    }
+
+    function getWeekLabel(weekId) {
+      if (!weekId) return '';
+      const parts = weekId.split('-W');
+      if (parts.length !== 2) return weekId;
+      const year = parseInt(parts[0]);
+      const week = parseInt(parts[1]);
+      // 计算该周周一的日期
+      const d = new Date(year, 0, 4);
+      d.setDate(d.getDate() + (week - 1) * 7 - (d.getDay() + 6) % 7);
+      const m = (d.getMonth() + 1) + '/' + d.getDate();
+      const end = new Date(d);
+      end.setDate(d.getDate() + 6);
+      const s = (end.getMonth() + 1) + '/' + end.getDate();
+      return m + '-' + s;
+    }
+
+    function resetCommunicationForm() {
+      communicationForm.vocabulary = 0;
+      communicationForm.sentence1 = '';
+      communicationForm.sentence2 = '';
+      communicationForm.sentence3 = '';
+      communicationForm.conversationTurns = 0;
+      communicationForm.narrativeScore = 3;
+      communicationForm.initiativeScore = 3;
+    }
+
+    function loadCommunicationForm(log) {
+      if (log) {
+        communicationForm.vocabulary = log.vocabulary;
+        communicationForm.sentence1 = log.sentences[0] || '';
+        communicationForm.sentence2 = log.sentences[1] || '';
+        communicationForm.sentence3 = log.sentences[2] || '';
+        communicationForm.conversationTurns = log.conversationTurns;
+        communicationForm.narrativeScore = log.narrativeScore;
+        communicationForm.initiativeScore = log.initiativeScore;
+      } else {
+        resetCommunicationForm();
+      }
+    }
+
+    async function saveCommunicationLog() {
+      const vocabulary = communicationForm.vocabulary;
+      const sentences = [communicationForm.sentence1, communicationForm.sentence2, communicationForm.sentence3];
+      const conversationTurns = communicationForm.conversationTurns;
+      const narrativeScore = communicationForm.narrativeScore;
+      const initiativeScore = communicationForm.initiativeScore;
+
+      if (typeof vocabulary !== 'number' || vocabulary < 0 || vocabulary > 200) {
+        showToast('请输入有效的词汇量（0–200）');
+        return;
+      }
+      if (sentences.some(s => !s || !s.trim())) {
+        showToast('请填写 3 句语言样本');
+        return;
+      }
+      if (typeof conversationTurns !== 'number' || conversationTurns < 0 || conversationTurns > 50) {
+        showToast('请输入有效的对话轮次（0–50）');
+        return;
+      }
+      if (typeof narrativeScore !== 'number' || narrativeScore < 1 || narrativeScore > 5) {
+        showToast('叙事能力评分须在 1–5 之间');
+        return;
+      }
+      if (typeof initiativeScore !== 'number' || initiativeScore < 1 || initiativeScore > 5) {
+        showToast('沟通主动性评分须在 1–5 之间');
+        return;
+      }
+
+      try {
+        const result = await api('/api/communication/log', {
+          method: 'POST',
+          body: JSON.stringify({ vocabulary, sentences: sentences.map(s => s.trim()), conversationTurns, narrativeScore, initiativeScore })
+        });
+        const existing = communicationLogs.value.findIndex(l => l.weekId === result.weekId);
+        if (existing === -1) communicationLogs.value.push(result);
+        else communicationLogs.value[existing] = result;
+        showToast('本周沟通日志已保存');
+        communicationLogTab.value = 'history';
+      } catch (err) {
+        showToast(err.message);
+      }
+    }
     let reminderTimer = null;
     function scheduleReminder() {
       if (!("Notification" in window)) return;
@@ -1528,6 +1638,7 @@ const app = createApp({
           emotionCheckins.value = saved.emotionCheckins || [];
           emotionGames.value = saved.emotionGames || [];
           strategyRecords.value = saved.strategyRecords || [];
+          communicationLogs.value = saved.communicationLogs || [];
           view.value = "home";
           selectedAge.value = saved.profile?.age || 4;
           scheduleReminder();
@@ -1557,6 +1668,8 @@ const app = createApp({
       strategyCompleted, strategyFindObjects, strategyCalmStars, strategyTapEmoji,
       // focus state
       focusElapsed,
+      // communication log state
+      communicationLogs, communicationLogTab, communicationForm,
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
@@ -1585,6 +1698,9 @@ const app = createApp({
       openStrategyDetail, closeStrategyDetail, doStrategyAction, findObject, completeStrategy,
       startEmotionGame, answerEmotionGame, finishEmotionGame, exitEmotionGame,
       emotionGameAnswerClass, emotionGameAccuracy, emotionGameTotalGames,
+      // communication log methods
+      getCurrentWeekId, getCurrentWeekCommunicationLog, getWeekLabel,
+      resetCommunicationForm, loadCommunicationForm, saveCommunicationLog,
       // constants
       SUBJECT_META, SUCCESS_SOUNDS, WEEKDAY_NAMES, localDate, makeSubjectLesson,
       completedTodaySubject, todayDraftSubject, streak, getTodaySubjects,

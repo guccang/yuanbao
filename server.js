@@ -509,7 +509,8 @@ async function handleApi(request, response, requestPath) {
       schedule: account.schedule || DEFAULT_SCHEDULE,
       emotionCheckins: account.emotionCheckins || [],
       emotionGames: account.emotionGames || [],
-      strategyRecords: account.strategyRecords || []
+      strategyRecords: account.strategyRecords || [],
+      communicationLogs: account.communicationLogs || []
     });
   }
 
@@ -689,6 +690,62 @@ async function handleApi(request, response, requestPath) {
 	    account.emotionGames.push(game);
 	    await persistState();
 	    return sendJson(response, 200, game);
+	  }
+
+	  // ---- 沟通日志 ----
+	  if (requestPath === "/api/communication/log" && request.method === "POST") {
+	    const { vocabulary, sentences, conversationTurns, narrativeScore, initiativeScore } = await readJson(request);
+	    if (typeof vocabulary !== "number" || vocabulary < 0 || vocabulary > 200) {
+	      return sendJson(response, 400, { error: "词汇量数据无效" });
+	    }
+	    if (!Array.isArray(sentences) || sentences.length !== 3 || sentences.some(s => typeof s !== "string" || s.trim().length < 1)) {
+	      return sendJson(response, 400, { error: "请提供 3 句语言样本" });
+	    }
+	    if (typeof conversationTurns !== "number" || conversationTurns < 0 || conversationTurns > 50) {
+	      return sendJson(response, 400, { error: "对话轮次数据无效" });
+	    }
+	    if (typeof narrativeScore !== "number" || narrativeScore < 1 || narrativeScore > 5) {
+	      return sendJson(response, 400, { error: "叙事能力评分须在 1–5 之间" });
+	    }
+	    if (typeof initiativeScore !== "number" || initiativeScore < 1 || initiativeScore > 5) {
+	      return sendJson(response, 400, { error: "沟通主动性评分须在 1–5 之间" });
+	    }
+	    if (!account.communicationLogs) account.communicationLogs = [];
+
+	    // 计算 ISO 周编号
+	    const now = new Date();
+	    const offset = now.getTimezoneOffset() * 60000;
+	    const localDateStr = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+	    const d = new Date(localDateStr);
+	    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+	    const weekNumber = Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7);
+	    const year = d.getFullYear();
+	    const weekId = year + "-W" + String(weekNumber).padStart(2, "0");
+
+	    const log = {
+	      weekId,
+	      year,
+	      weekNumber,
+	      vocabulary,
+	      sentences: sentences.map(s => s.trim()),
+	      conversationTurns,
+	      narrativeScore,
+	      initiativeScore,
+	      createdAt: new Date().toISOString(),
+	      date: localDateStr
+	    };
+
+	    // 同一周覆盖旧记录
+	    const existing = account.communicationLogs.findIndex(l => l.weekId === weekId);
+	    if (existing === -1) account.communicationLogs.push(log);
+	    else account.communicationLogs[existing] = log;
+
+	    await persistState();
+	    return sendJson(response, 200, log);
+	  }
+
+	  if (requestPath === "/api/communication/log" && request.method === "GET") {
+	    return sendJson(response, 200, (account.communicationLogs || []).sort((a, b) => b.weekId.localeCompare(a.weekId)));
 	  }
 
 	  // ---- 列出账户（用于切换） ----

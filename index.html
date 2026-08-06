@@ -311,6 +311,7 @@
         <div class="progress-tabs">
           <button class="progress-tab" :class="{ active: progressTab === 'overview' }" @click="progressTab = 'overview'">🌱 成长足迹</button>
           <button class="progress-tab" :class="{ active: progressTab === 'weekly' }" @click="progressTab = 'weekly'">📊 情绪周报</button>
+          <button class="progress-tab" :class="{ active: progressTab === 'communication' }" @click="progressTab = 'communication'; communicationLogTab = getCurrentWeekCommunicationLog() ? 'history' : 'form'">🗣️ 沟通日志</button>
         </div>
 
         <!-- ============ 成长足迹 Tab ============ -->
@@ -516,6 +517,131 @@
             <p>还没有足够的情绪数据来生成周报 📊</p>
             <p>坚持每天进行情绪自评、玩情绪游戏和尝试调节策略，<br>4 周后这里会展示宝宝的情绪发展报告。</p>
           </div>
+        </template>
+
+        <!-- ============ 沟通日志 Tab ============ -->
+        <template v-if="progressTab === 'communication'">
+          <p class="eyebrow">沟通发展日志</p>
+          <h1 class="page-title">沟通能力周记录</h1>
+          <p class="page-subtitle">基于 Brown/Bloom 语言发展阶段理论，每周记录一次宝宝的沟通发展观察。</p>
+
+          <!-- Tab 切换 -->
+          <div class="comm-log-tabs">
+            <button class="comm-log-tab" :class="{ active: communicationLogTab === 'form' }" @click="loadCommunicationForm(getCurrentWeekCommunicationLog()); communicationLogTab = 'form'">✏️ 填写记录</button>
+            <button class="comm-log-tab" :class="{ active: communicationLogTab === 'history' }" @click="communicationLogTab = 'history'">📋 历史记录</button>
+          </div>
+
+          <!-- ======== 填写表单 ======== -->
+          <template v-if="communicationLogTab === 'form'">
+            <section class="comm-form-card">
+              <div class="comm-form-header">
+                <span class="comm-form-week">{{ getWeekLabel(getCurrentWeekId()) }}</span>
+                <span class="comm-form-badge" v-if="getCurrentWeekCommunicationLog()">本周已记录 · 可覆盖更新</span>
+                <span class="comm-form-badge comm-form-badge-new" v-else>本周待记录</span>
+              </div>
+
+              <div class="section-heading"><h2>📖 表达性词汇量</h2><span>本周新增词汇数</span></div>
+              <p class="comm-form-desc">回忆一下，宝宝这周学会了哪些新词？大约估算本周新增的词汇数量。</p>
+              <label class="field">本周新增词汇数
+                <input v-model.number="communicationForm.vocabulary" type="number" min="0" max="200" placeholder="例如：5">
+              </label>
+
+              <div class="section-heading"><h2>💬 平均句长观察</h2><span>记录 3 句自然语言样本</span></div>
+              <p class="comm-form-desc">在日常生活中，留意宝宝说的最长的句子，记录下 3 句典型的表达。</p>
+              <label class="field">句子示例 1
+                <input v-model="communicationForm.sentence1" maxlength="100" placeholder="例如：妈妈，我要吃苹果">
+              </label>
+              <label class="field">句子示例 2
+                <input v-model="communicationForm.sentence2" maxlength="100" placeholder="例如：爸爸去上班了，我想他">
+              </label>
+              <label class="field">句子示例 3
+                <input v-model="communicationForm.sentence3" maxlength="100" placeholder="例如：我的小熊在沙发上睡觉">
+              </label>
+
+              <div class="section-heading"><h2>🔄 对话维持轮次</h2><span>日常对话中主动维持的轮次</span></div>
+              <p class="comm-form-desc">在一天的对话中，宝宝能主动维持几个来回的对话？（例如：你问→宝宝答→宝宝追问→你答 = 2 轮）</p>
+              <label class="field">主动维持轮次
+                <input v-model.number="communicationForm.conversationTurns" type="number" min="0" max="50" placeholder="例如：3">
+              </label>
+
+              <div class="section-heading"><h2>⭐ 叙事能力评分</h2><span>5 分量表</span></div>
+              <p class="comm-form-desc">宝宝在讲述一件事或一个故事时，能组织多完整的叙事结构？</p>
+              <div class="comm-rating">
+                <button v-for="n in 5" :key="'n'+n" type="button"
+                  class="comm-rating-btn"
+                  :class="{ active: communicationForm.narrativeScore >= n }"
+                  @click="communicationForm.narrativeScore = n">
+                  {{ n }}
+                </button>
+              </div>
+              <div class="comm-rating-labels">
+                <span>1 - 简单描述</span>
+                <span>3 - 有因果</span>
+                <span>5 - 完整叙事</span>
+              </div>
+
+              <div class="section-heading"><h2>💪 沟通主动性评分</h2><span>5 分量表</span></div>
+              <p class="comm-form-desc">宝宝在日常生活中主动发起沟通的频率如何？</p>
+              <div class="comm-rating">
+                <button v-for="n in 5" :key="'i'+n" type="button"
+                  class="comm-rating-btn"
+                  :class="{ active: communicationForm.initiativeScore >= n }"
+                  @click="communicationForm.initiativeScore = n">
+                  {{ n }}
+                </button>
+              </div>
+              <div class="comm-rating-labels">
+                <span>1 - 很少主动</span>
+                <span>3 - 有时主动</span>
+                <span>5 - 经常主动</span>
+              </div>
+
+              <div class="comm-form-actions">
+                <button class="primary-btn green" @click="saveCommunicationLog">保存本周记录</button>
+              </div>
+            </section>
+          </template>
+
+          <!-- ======== 历史记录 ======== -->
+          <template v-if="communicationLogTab === 'history'">
+            <template v-if="communicationLogs.length">
+              <section class="history-list">
+                <article v-for="(log, i) in [...communicationLogs].sort((a, b) => b.weekId.localeCompare(a.weekId))" :key="i" class="comm-log-item">
+                  <div class="comm-log-item-header">
+                    <span class="comm-log-week">{{ getWeekLabel(log.weekId) }}</span>
+                    <span class="comm-log-date">{{ log.date }}</span>
+                    <button v-if="log.weekId === getCurrentWeekId()" class="comm-log-edit" @click="loadCommunicationForm(log); communicationLogTab = 'form'">✎ 编辑</button>
+                  </div>
+                  <div class="comm-log-stats">
+                    <div class="comm-log-stat">
+                      <strong>📖 {{ log.vocabulary }}</strong>
+                      <span>新增词汇</span>
+                    </div>
+                    <div class="comm-log-stat">
+                      <strong>🔄 {{ log.conversationTurns }}</strong>
+                      <span>对话轮次</span>
+                    </div>
+                    <div class="comm-log-stat">
+                      <strong>⭐ {{ log.narrativeScore }}/5</strong>
+                      <span>叙事能力</span>
+                    </div>
+                    <div class="comm-log-stat">
+                      <strong>💪 {{ log.initiativeScore }}/5</strong>
+                      <span>沟通主动性</span>
+                    </div>
+                  </div>
+                  <div class="comm-log-sentences">
+                    <p><strong>语言样本：</strong></p>
+                    <p v-for="(s, si) in log.sentences" :key="si" class="comm-log-sentence">「{{ s }}」</p>
+                  </div>
+                </article>
+              </section>
+            </template>
+            <div v-else class="empty">
+              <p>还没有沟通日志记录 📝</p>
+              <p>点击「填写记录」开始记录宝宝本周的沟通发展观察。</p>
+            </div>
+          </template>
         </template>
       </template>
 
