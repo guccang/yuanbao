@@ -19,6 +19,25 @@ const SUCCESS_SOUNDS = [
 
 const WEEKDAY_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
+// ======================== 情绪分区 ========================
+const EMOTION_ZONES = [
+  { id: "blue",  emoji: "😴", label: "蓝区", name: "有点累",   desc: "疲倦、无聊、没精神",        suggestion: "先活动一下，跳一跳再开始学习吧！", color: "var(--blue)" },
+  { id: "green", emoji: "😊", label: "绿区", name: "很开心",   desc: "平静、专注、开心",          suggestion: "状态很好，开始学习吧！",           color: "var(--green)" },
+  { id: "yellow",emoji: "😰", label: "黄区", name: "有点紧张", desc: "兴奋、焦虑、担心",          suggestion: "深呼吸三次，慢慢来~",               color: "var(--yellow)" },
+  { id: "red",   emoji: "😤", label: "红区", name: "很生气",   desc: "愤怒、害怕、想发脾气",      suggestion: "先喝口水，抱抱小玩偶休息一下",      color: "#e88070" }
+];
+
+const EMOTION_GAME_QUESTIONS = [
+  { emoji: "😊", answer: "开心", options: ["开心", "伤心", "生气", "害怕"] },
+  { emoji: "😢", answer: "伤心", options: ["开心", "伤心", "惊讶", "生气"] },
+  { emoji: "😤", answer: "生气", options: ["害怕", "开心", "生气", "无聊"] },
+  { emoji: "😨", answer: "害怕", options: ["开心", "生气", "害怕", "惊讶"] },
+  { emoji: "😮", answer: "惊讶", options: ["生气", "害怕", "无聊", "惊讶"] },
+  { emoji: "🥱", answer: "无聊", options: ["伤心", "无聊", "生气", "害怕"] },
+  { emoji: "😌", answer: "平静", options: ["生气", "平静", "害怕", "开心"] },
+  { emoji: "😅", answer: "尴尬", options: ["开心", "害怕", "尴尬", "生气"] }
+];
+
 // ======================== API Helpers ========================
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -260,6 +279,17 @@ const app = createApp({
     const editDialog = reactive({ show: false, dow: 0, selected: [] });
     // 加载状态
     const loading = ref(false);
+    // 情绪分区自评
+    const emotionCheckins = ref([]);
+    const showEmotionCheckin = ref(false);
+    const selectedZone = ref(null);
+    const emotionCheckinDone = ref(false);
+    // 情绪识别游戏
+    const emotionGames = ref([]);
+    const emotionGameView = ref("start"); // start | playing | result
+    const emotionGameIndex = ref(0);
+    const emotionGameAnswers = ref([]);
+    const emotionGameScore = ref(0);
     // 表单
     const authError = ref("");
     const loginUsername = ref("");
@@ -717,7 +747,117 @@ const app = createApp({
       return answers.value.filter(a => a?.correct).length;
     }
 
-    // ---- 学习提醒 ----
+    // ---- 情绪分区自评 ----
+    function todayEmotionCheckin() {
+      const today = localDate();
+      return emotionCheckins.value.find(c => c.date === today);
+    }
+
+    async function doEmotionCheckin(zone) {
+      selectedZone.value = zone;
+      try {
+        const result = await api("/api/emotion/checkin", { method: "POST", body: JSON.stringify({ zone }) });
+        const existing = emotionCheckins.value.findIndex(c => c.date === result.date);
+        if (existing === -1) emotionCheckins.value.push(result);
+        else emotionCheckins.value[existing] = result;
+        emotionCheckinDone.value = true;
+      } catch (err) {
+        showToast("情绪记录暂未保存，请稍后重试");
+        selectedZone.value = null;
+      }
+    }
+
+    function closeEmotionCheckin() {
+      showEmotionCheckin.value = false;
+      selectedZone.value = null;
+    }
+
+    function openEmotionCheckin() {
+      if (todayEmotionCheckin()) {
+        emotionCheckinDone.value = true;
+        return;
+      }
+      showEmotionCheckin.value = true;
+      selectedZone.value = null;
+    }
+
+    // ---- 情绪识别游戏 ----
+    const currentEmotionQuestion = computed(() => {
+      if (emotionGameView.value !== "playing") return null;
+      return EMOTION_GAME_QUESTIONS[emotionGameIndex.value] || null;
+    });
+
+    const emotionGameProgress = computed(() => {
+      if (!EMOTION_GAME_QUESTIONS.length) return 0;
+      return Math.round(emotionGameIndex.value / EMOTION_GAME_QUESTIONS.length * 100);
+    });
+
+    function startEmotionGame() {
+      emotionGameView.value = "playing";
+      emotionGameIndex.value = 0;
+      emotionGameAnswers.value = [];
+      emotionGameScore.value = 0;
+    }
+
+    function answerEmotionGame(chosen) {
+      const q = currentEmotionQuestion.value;
+      if (!q) return;
+      const correct = chosen === q.answer;
+      emotionGameAnswers.value.push({ emoji: q.emoji, answer: q.answer, chosen, correct });
+      if (correct) emotionGameScore.value++;
+      if (emotionGameIndex.value < EMOTION_GAME_QUESTIONS.length - 1) {
+        emotionGameIndex.value++;
+      } else {
+        finishEmotionGame();
+      }
+    }
+
+    async function finishEmotionGame() {
+      emotionGameView.value = "result";
+      try {
+        const result = await api("/api/emotion/game", {
+          method: "POST",
+          body: JSON.stringify({
+            answers: emotionGameAnswers.value,
+            score: emotionGameScore.value,
+            total: EMOTION_GAME_QUESTIONS.length
+          })
+        });
+        emotionGames.value.push(result);
+      } catch (err) {
+        showToast("游戏记录暂未保存");
+      }
+    }
+
+    function exitEmotionGame() {
+      emotionGameView.value = "start";
+      emotionGameIndex.value = 0;
+      emotionGameAnswers.value = [];
+      emotionGameScore.value = 0;
+      navigate("home");
+    }
+
+    function emotionGameAnswerClass(opt) {
+      const q = currentEmotionQuestion.value;
+      if (!q) return {};
+      // 已答过题时显示正确/错误样式
+      const answered = emotionGameAnswers.value[emotionGameIndex.value];
+      if (!answered) return {};
+      return {
+        correct: opt === q.answer,
+        wrong: opt === answered.chosen && !answered.correct
+      };
+    }
+
+    function emotionGameAccuracy() {
+      const all = emotionGames.value.flatMap(g => g.answers || []);
+      if (!all.length) return 0;
+      return Math.round(all.filter(a => a.correct).length / all.length * 100);
+    }
+
+    function emotionGameTotalGames() {
+      return emotionGames.value.length;
+    }
     let reminderTimer = null;
     function scheduleReminder() {
       if (!("Notification" in window)) return;
@@ -776,6 +916,8 @@ const app = createApp({
           profile.value = saved.profile;
           records.value = saved.records || [];
           schedule.value = saved.schedule || {};
+          emotionCheckins.value = saved.emotionCheckins || [];
+          emotionGames.value = saved.emotionGames || [];
           view.value = "home";
           selectedAge.value = saved.profile?.age || 4;
           scheduleReminder();
@@ -796,10 +938,14 @@ const app = createApp({
       answerDisabled, answerChosen, answerCorrect, editDialog, loading,
       authError, loginUsername, loginPassword, regUsername, regPassword, regChildName,
       showEditProfile, editName, editAge,
+      // emotion state
+      emotionCheckins, showEmotionCheckin, selectedZone, emotionCheckinDone,
+      emotionGames, emotionGameView, emotionGameIndex, emotionGameAnswers, emotionGameScore,
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
       navItems, achievements, wrongAnswers,
+      currentEmotionQuestion, emotionGameProgress,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
@@ -811,10 +957,15 @@ const app = createApp({
       remainingSubjects, correctCount,
       openEditProfile, saveEditProfile,
       achievements, scheduleReminder,
+      // emotion methods
+      openEmotionCheckin, doEmotionCheckin, closeEmotionCheckin, todayEmotionCheckin,
+      startEmotionGame, answerEmotionGame, finishEmotionGame, exitEmotionGame,
+      emotionGameAnswerClass, emotionGameAccuracy, emotionGameTotalGames,
       // constants
       SUBJECT_META, SUCCESS_SOUNDS, WEEKDAY_NAMES, localDate, makeSubjectLesson,
       completedTodaySubject, todayDraftSubject, streak, getTodaySubjects,
-      celebrateWithParticles, playFeedbackSound
+      celebrateWithParticles, playFeedbackSound,
+      EMOTION_ZONES, EMOTION_GAME_QUESTIONS
     };
   }
 });

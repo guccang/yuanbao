@@ -80,6 +80,16 @@
           <p>{{ todaySubjects.length }} 个学科 · 每科约 5 分钟</p>
         </section>
 
+        <!-- 情绪分区自评状态 -->
+        <section class="emotion-checkin-bar" @click="openEmotionCheckin">
+          <span class="emotion-checkin-icon">{{ todayEmotionCheckin() ? EMOTION_ZONES.find(z => z.id === todayEmotionCheckin().zone)?.emoji || '😊' : '💭' }}</span>
+          <div>
+            <strong>{{ todayEmotionCheckin() ? '今天感觉' + (EMOTION_ZONES.find(z => z.id === todayEmotionCheckin().zone)?.name || '') : '今天你感觉怎么样？' }}</strong>
+            <p>{{ todayEmotionCheckin() ? '点击重新选择情绪分区' : '点这里告诉元宝你的心情' }}</p>
+          </div>
+          <span class="emotion-checkin-arrow">{{ todayEmotionCheckin() ? '✎' : '→' }}</span>
+        </section>
+
         <section class="streak-card">
           <div class="streak-icon">{{ streakCount ? "🔥" : "🌟" }}</div>
           <div>
@@ -116,6 +126,17 @@
             <span>{{ day.dayName }}</span>
             <b>{{ day.isDone ? "✓" : day.dayNum }}</b>
           </div>
+        </div>
+
+        <!-- 情绪识别游戏 -->
+        <div class="section-heading"><h2>😊 情绪小游戏</h2><span>识别情绪 · 认识自己</span></div>
+        <div class="emotion-game-card" @click="navigate('emotion-game')">
+          <div class="emotion-game-card-emoji">😊</div>
+          <div class="emotion-game-card-copy">
+            <strong>情绪识别游戏</strong>
+            <p>看表情猜情绪，{{ emotionGameTotalGames() ? '已玩 ' + emotionGameTotalGames() + ' 次 · 正确率 ' + emotionGameAccuracy() + '%' : '来试试你能认出多少种情绪吧！' }}</p>
+          </div>
+          <span class="emotion-game-card-arrow">→</span>
         </div>
       </template>
 
@@ -197,7 +218,65 @@
         </main>
       </template>
 
-      <!-- ==================== 课表 ==================== -->
+      <!-- ==================== 情绪识别游戏 ==================== -->
+      <template v-else-if="view === 'emotion-game'">
+        <header class="lesson-top">
+          <button class="icon-btn" @click="exitEmotionGame" aria-label="退出游戏">‹</button>
+          <div class="step-progress"><i :style="{ width: emotionGameProgress + '%' }"></i></div>
+          <div class="step-count">{{ emotionGameIndex + 1 }}/{{ EMOTION_GAME_QUESTIONS.length }}</div>
+        </header>
+
+        <!-- 游戏开始页 -->
+        <template v-if="emotionGameView === 'start'">
+          <main class="emotion-game-start">
+            <div class="emotion-game-start-icon">🎭</div>
+            <h1>情绪识别游戏</h1>
+            <p>看看表情图，猜猜是什么情绪<br>一共 {{ EMOTION_GAME_QUESTIONS.length }} 题，准备好了吗？</p>
+            <button class="primary-btn green" @click="startEmotionGame">开始游戏 →</button>
+            <p v-if="emotionGameTotalGames()" class="emotion-game-history">上次正确率：{{ emotionGameAccuracy() }}%</p>
+          </main>
+        </template>
+
+        <!-- 游戏进行中 -->
+        <template v-else-if="emotionGameView === 'playing' && currentEmotionQuestion">
+          <main class="activity">
+            <span class="subject-tag" style="--tag-color:var(--pink);--tag-soft:var(--pink-soft);--tag-text:var(--pink)">🎭 情绪游戏</span>
+            <h1>这是什么情绪？</h1>
+            <section class="emotion-game-prompt">
+              <div class="emotion-game-emoji">{{ currentEmotionQuestion.emoji }}</div>
+            </section>
+            <div class="answers emotion-game-answers">
+              <button v-for="(opt, i) in currentEmotionQuestion.options" :key="i"
+                class="answer emotion-game-answer"
+                @click="answerEmotionGame(opt)">
+                {{ opt }}
+              </button>
+            </div>
+          </main>
+        </template>
+
+        <!-- 游戏结果页 -->
+        <template v-else-if="emotionGameView === 'result'">
+          <main class="celebrate">
+            <p class="eyebrow">🎭 情绪识别游戏</p>
+            <div class="emotion-game-result-icon">{{ emotionGameScore >= 5 ? '🌟' : '💪' }}</div>
+            <h1>{{ emotionGameScore >= 5 ? '太棒啦！' : '继续加油！' }}</h1>
+            <p>你答对了 {{ emotionGameScore }}/{{ EMOTION_GAME_QUESTIONS.length }} 题</p>
+            <div class="emotion-game-result-list">
+              <div v-for="(a, i) in emotionGameAnswers" :key="i" class="emotion-game-result-item" :class="{ correct: a.correct, wrong: !a.correct }">
+                <span class="eg-result-emoji">{{ a.emoji }}</span>
+                <span class="eg-result-icon">{{ a.correct ? '✓' : '✗' }}</span>
+                <span class="eg-result-answer">{{ a.answer }}</span>
+                <span v-if="!a.correct" class="eg-result-chosen">你选了：{{ a.chosen }}</span>
+              </div>
+            </div>
+            <div class="emotion-game-result-btns">
+              <button class="primary-btn green" @click="startEmotionGame">再玩一次 →</button>
+              <button class="secondary-btn" @click="exitEmotionGame">回到首页</button>
+            </div>
+          </main>
+        </template>
+      </template>
       <template v-else-if="view === 'schedule'">
         <p class="eyebrow">课程表</p>
         <h1 class="page-title">每周学习计划</h1>
@@ -255,6 +334,23 @@
             </article>
           </template>
           <div v-else class="empty">完成课程后，成长记录会出现在这里 🌱</div>
+        </section>
+        <div class="section-heading" v-if="emotionCheckins.length"><h2>😊 情绪日志</h2><span>已记录 {{ emotionCheckins.length }} 天</span></div>
+        <section class="emotion-log" v-if="emotionCheckins.length">
+          <div v-for="(c, i) in [...emotionCheckins].reverse().slice(0, 14)" :key="i"
+            class="emotion-log-item"
+            :style="'--e-color:' + (EMOTION_ZONES.find(z => z.id === c.zone)?.color || 'var(--muted)')">
+            <span class="emotion-log-emoji">{{ EMOTION_ZONES.find(z => z.id === c.zone)?.emoji || '❓' }}</span>
+            <span class="emotion-log-date">{{ c.date.slice(5) }}</span>
+          </div>
+        </section>
+        <div class="section-heading" v-if="emotionGames.length"><h2>🎭 情绪游戏</h2><span>已玩 {{ emotionGames.length }} 次</span></div>
+        <section class="history-list" v-if="emotionGames.length">
+          <article v-for="(g, i) in [...emotionGames].reverse()" :key="i" class="history-item">
+            <div class="history-icon" style="background:#fff0f5;color:#f6a4bb">🎭</div>
+            <div class="history-copy"><strong>情绪识别游戏</strong><small>{{ g.date }} · 答对 {{ g.score }}/{{ g.total }} 题</small></div>
+            <div class="history-score" :style="{ color: g.score >= 5 ? 'var(--green)' : 'var(--orange)' }">{{ g.score >= 5 ? '🌟' : '💪' }}</div>
+          </article>
         </section>
         <div class="section-heading" v-if="wrongAnswers.length"><h2>📝 错题本</h2><span>收集了 {{ wrongAnswers.length }} 道错题</span></div>
         <section class="history-list" v-if="wrongAnswers.length">
@@ -343,6 +439,38 @@
             <button class="secondary-btn" @click="showEditProfile = false">取消</button>
             <button class="primary-btn green" @click="saveEditProfile">保存</button>
           </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==================== 情绪分区自评对话框 ==================== -->
+    <Teleport to="body">
+      <div v-if="showEmotionCheckin" class="emotion-checkin-overlay" @click.self="closeEmotionCheckin">
+        <div class="emotion-checkin-dialog">
+          <div class="emotion-checkin-header">
+            <div class="emotion-checkin-icon">🌈</div>
+            <h3>今天你感觉怎么样？</h3>
+            <p>选择一个最符合你现在心情的分区</p>
+          </div>
+          <div class="emotion-zone-grid">
+            <button v-for="zone in EMOTION_ZONES" :key="zone.id"
+              class="emotion-zone-btn"
+              :class="{ active: selectedZone === zone.id }"
+              :style="'--zone-color:' + zone.color"
+              @click="doEmotionCheckin(zone.id)">
+              <span class="emotion-zone-emoji">{{ zone.emoji }}</span>
+              <span class="emotion-zone-name">{{ zone.name }}</span>
+              <span class="emotion-zone-desc">{{ zone.desc }}</span>
+            </button>
+          </div>
+          <div v-if="selectedZone" class="emotion-suggestion">
+            <span class="emotion-suggestion-emoji">{{ EMOTION_ZONES.find(z => z.id === selectedZone)?.emoji }}</span>
+            <div>
+              <strong>{{ EMOTION_ZONES.find(z => z.id === selectedZone)?.label }}</strong>
+              <p>{{ EMOTION_ZONES.find(z => z.id === selectedZone)?.suggestion }}</p>
+            </div>
+          </div>
+          <button v-if="selectedZone" class="primary-btn green" @click="closeEmotionCheckin">知道了，开始学习吧 →</button>
         </div>
       </div>
     </Teleport>

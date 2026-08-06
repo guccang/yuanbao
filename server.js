@@ -510,7 +510,9 @@ async function handleApi(request, response, requestPath) {
     return sendJson(response, 200, {
       profile: account.profile,
       records: account.records || [],
-      schedule: account.schedule || DEFAULT_SCHEDULE
+      schedule: account.schedule || DEFAULT_SCHEDULE,
+      emotionCheckins: account.emotionCheckins || [],
+      emotionGames: account.emotionGames || []
     });
   }
 
@@ -610,7 +612,48 @@ async function handleApi(request, response, requestPath) {
     return response.end(html);
   }
 
-  // ---- 列出账户（用于切换） ----
+  // ---- 情绪分区自评 ----
+	  if (requestPath === "/api/emotion/checkin" && request.method === "POST") {
+	    const { zone } = await readJson(request);
+	    if (!["blue", "green", "yellow", "red"].includes(zone)) {
+	      return sendJson(response, 400, { error: "情绪分区无效" });
+	    }
+	    if (!account.emotionCheckins) account.emotionCheckins = [];
+	    const today = new Date();
+	    const offset = today.getTimezoneOffset() * 60000;
+	    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+	    // 同一天只保留最新的自评
+	    const existing = account.emotionCheckins.findIndex(c => c.date === todayKey);
+	    const checkin = { date: todayKey, zone, createdAt: new Date().toISOString() };
+	    if (existing === -1) account.emotionCheckins.push(checkin);
+	    else account.emotionCheckins[existing] = checkin;
+	    await persistState();
+	    return sendJson(response, 200, checkin);
+	  }
+
+	  // ---- 情绪识别游戏 ----
+	  if (requestPath === "/api/emotion/game" && request.method === "POST") {
+	    const { answers, score, total } = await readJson(request);
+	    if (!Array.isArray(answers) || typeof score !== "number" || typeof total !== "number") {
+	      return sendJson(response, 400, { error: "游戏数据格式无效" });
+	    }
+	    if (!account.emotionGames) account.emotionGames = [];
+	    const today = new Date();
+	    const offset = today.getTimezoneOffset() * 60000;
+	    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+	    const game = {
+	      date: todayKey,
+	      answers,
+	      score,
+	      total,
+	      createdAt: new Date().toISOString()
+	    };
+	    account.emotionGames.push(game);
+	    await persistState();
+	    return sendJson(response, 200, game);
+	  }
+
+	  // ---- 列出账户（用于切换） ----
   if (requestPath === "/api/accounts" && request.method === "GET") {
     const list = Object.entries(persistedState.accounts).map(([id, acct]) => ({
       accountId: id,
