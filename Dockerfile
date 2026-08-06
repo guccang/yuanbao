@@ -5,7 +5,7 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-COPY index.html app.js styles.css server.js ./
+COPY index.html app.js styles.css server.js manifest.json sw.js ./
 COPY modules/ ./modules/
 
 RUN node --check server.js && \
