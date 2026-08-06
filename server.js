@@ -429,10 +429,6 @@ async function handleApi(request, response, requestPath) {
     if (!password || typeof password !== "string" || password.length < 4) {
       return sendJson(response, 400, { error: "密码至少 4 个字符" });
     }
-    // 密码强度：至少 8 个字符，包含字母和数字
-    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return sendJson(response, 400, { error: "密码至少 8 个字符，且包含字母和数字" });
-    }
     if (!childName || typeof childName !== "string" || !childName.trim()) {
       return sendJson(response, 400, { error: "请输入宝宝的小名" });
     }
