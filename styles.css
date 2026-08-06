@@ -2287,6 +2287,163 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   color: #403b46;
 }
 
+/* ======================== 今日故事任务 ======================== */
+.story-card {
+  padding: 20px;
+  border: 2px solid white;
+  border-radius: 21px;
+  background: rgba(255,255,255,.88);
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 16px;
+}
+.story-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.story-date {
+  font-size: 13px;
+  color: var(--muted);
+}
+.story-scene {
+  padding: 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff9f3 0%, #fef7f0 100%);
+  border: 2px solid #f0e8d8;
+  margin-bottom: 16px;
+}
+.story-scene-setting {
+  font-size: 16px;
+  line-height: 1.8;
+  margin-bottom: 14px;
+  color: #403b46;
+}
+.story-scene-details {
+  display: grid;
+  gap: 12px;
+}
+.story-scene-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.story-scene-section > strong {
+  font-size: 13px;
+  color: var(--muted);
+}
+.story-scene-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.story-tag {
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: white;
+  border: 1.5px solid #f0e8d8;
+  font-size: 14px;
+  color: #403b46;
+}
+.story-actions {
+  margin: 0;
+  padding-left: 18px;
+  color: #403b46;
+  line-height: 1.8;
+}
+.story-prompt {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #eef7f0;
+  margin-bottom: 16px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #2a6e4a;
+}
+.story-challenge {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1.5px dashed #b8d5c0;
+  font-style: italic;
+}
+.story-response-recorded {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fef3e2;
+  margin-bottom: 16px;
+}
+.story-response-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #403b46;
+  padding: 8px 0;
+}
+.story-response-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.story-form {
+  padding: 16px;
+  border-radius: 16px;
+  background: #f8f6ff;
+  border: 2px solid #e8e0f0;
+  margin-top: 16px;
+}
+.story-textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid #e0d8e8;
+  font-family: inherit;
+  font-size: 15px;
+  resize: vertical;
+  transition: border-color .2s;
+  box-sizing: border-box;
+}
+.story-textarea:focus {
+  outline: none;
+  border-color: #a58ae5;
+}
+.story-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.story-history-item {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.88);
+  border: 2px solid white;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 10px;
+}
+.story-history-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.story-history-scene {
+  font-weight: 800;
+  color: #403b46;
+}
+.story-history-response {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #403b46;
+  padding: 6px 10px;
+  background: #fef7f0;
+  border-radius: 10px;
+}
+
 /* ======================== 情绪周报 - 暗色模式 ======================== */
 @media (prefers-color-scheme: dark) {
   .progress-tabs {

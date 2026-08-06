@@ -527,9 +527,104 @@
 
           <!-- Tab 切换 -->
           <div class="comm-log-tabs">
+            <button class="comm-log-tab" :class="{ active: communicationLogTab === 'story' }" @click="communicationLogTab = 'story'; loadTodayStory()">🎨 今日故事</button>
             <button class="comm-log-tab" :class="{ active: communicationLogTab === 'form' }" @click="loadCommunicationForm(getCurrentWeekCommunicationLog()); communicationLogTab = 'form'">✏️ 填写记录</button>
             <button class="comm-log-tab" :class="{ active: communicationLogTab === 'history' }" @click="communicationLogTab = 'history'">📋 历史记录</button>
           </div>
+
+          <!-- ======== 今日故事 ======== -->
+          <template v-if="communicationLogTab === 'story'">
+            <section class="story-card" v-if="storyTask">
+              <div class="story-header">
+                <span class="story-date">{{ storyTask.date }}</span>
+                <span class="comm-form-badge" v-if="storyTask.hasResponse">今日已记录</span>
+                <span class="comm-form-badge comm-form-badge-new" v-else>今日待完成</span>
+              </div>
+
+              <!-- 场景展示 -->
+              <div class="story-scene">
+                <div class="story-scene-setting">{{ storyTask.scene.setting }}</div>
+                <div class="story-scene-details">
+                  <div class="story-scene-section">
+                    <strong>角色</strong>
+                    <div class="story-scene-tags">
+                      <span v-for="(c, i) in storyTask.scene.characters" :key="i" class="story-tag">{{ c }}</span>
+                    </div>
+                  </div>
+                  <div class="story-scene-section">
+                    <strong>物品</strong>
+                    <div class="story-scene-tags">
+                      <span v-for="(o, i) in storyTask.scene.objects" :key="i" class="story-tag">{{ o }}</span>
+                    </div>
+                  </div>
+                  <div class="story-scene-section">
+                    <strong>在做什么</strong>
+                    <ul class="story-actions">
+                      <li v-for="(a, i) in storyTask.scene.actions" :key="i">{{ a }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 提示语 -->
+              <div class="story-prompt">
+                <p>{{ storyTask.scene.prompt }}</p>
+                <p v-if="storyTask.scene.challenge" class="story-challenge">{{ storyTask.scene.challenge }}</p>
+              </div>
+
+              <!-- 已有记录 -->
+              <template v-if="storyTask.hasResponse && storyTask.response">
+                <div class="story-response-recorded">
+                  <div class="section-heading"><h2>📝 宝宝的故事</h2></div>
+                  <div class="story-response-text">「{{ storyTask.response.childResponse }}」</div>
+                  <div class="story-response-meta">
+                    <span>叙事评分：{{ storyTask.response.narrativeScore }}/5</span>
+                    <span v-if="storyTask.response.parentNotes">备注：{{ storyTask.response.parentNotes }}</span>
+                  </div>
+                  <button class="secondary-btn" @click="loadStoryResponse(storyTask.response); storyTaskTab = 'form'">✎ 编辑记录</button>
+                </div>
+              </template>
+
+              <!-- 未记录 - 去记录 -->
+              <button v-else class="primary-btn green" @click="resetStoryForm()">🎤 记录宝宝的回答</button>
+
+              <!-- 记录表单（点击记录按钮后显示） -->
+              <template v-if="storyForm.childResponse || storyForm.parentNotes || storyForm.narrativeScore !== 3">
+                <div class="story-form">
+                  <div class="section-heading"><h2>🎤 记录宝宝的故事描述</h2></div>
+                  <label class="field">宝宝看到图片后说了什么？
+                    <textarea v-model="storyForm.childResponse" maxlength="500" rows="3" placeholder="把宝宝的原话记录下来..." class="story-textarea"></textarea>
+                  </label>
+                  <div class="section-heading"><h2>⭐ 叙事能力评分</h2><span>5 分量表</span></div>
+                  <p class="comm-form-desc">宝宝描述时能组织多完整的叙事结构？</p>
+                  <div class="comm-rating">
+                    <button v-for="n in 5" :key="'sn'+n" type="button"
+                      class="comm-rating-btn"
+                      :class="{ active: storyForm.narrativeScore >= n }"
+                      @click="storyForm.narrativeScore = n">
+                      {{ n }}
+                    </button>
+                  </div>
+                  <div class="comm-rating-labels">
+                    <span>1 - 简单词语</span>
+                    <span>3 - 有因果关系</span>
+                    <span>5 - 完整叙事</span>
+                  </div>
+                  <label class="field">家长备注（可选）
+                    <input v-model="storyForm.parentNotes" maxlength="200" placeholder="例如：宝宝今天特别兴奋，讲了很久">
+                  </label>
+                  <div class="story-form-actions">
+                    <button class="primary-btn green" @click="saveStoryResponse()">💾 保存记录</button>
+                    <button class="secondary-btn" @click="storyForm.childResponse = ''; storyForm.narrativeScore = 3; storyForm.parentNotes = ''">取消</button>
+                  </div>
+                </div>
+              </template>
+            </section>
+
+            <div v-else class="empty">
+              <p>正在加载今日故事场景...</p>
+            </div>
+          </template>
 
           <!-- ======== 填写表单 ======== -->
           <template v-if="communicationLogTab === 'form'">
@@ -640,6 +735,25 @@
             <div v-else class="empty">
               <p>还没有沟通日志记录 📝</p>
               <p>点击「填写记录」开始记录宝宝本周的沟通发展观察。</p>
+            </div>
+          </template>
+
+          <!-- ======== 故事任务历史 ======== -->
+          <template v-if="communicationLogTab === 'history'">
+            <div class="section-heading" style="margin-top:24px"><h2>🎨 故事任务历史</h2></div>
+            <template v-if="storyTask?.response || false">
+              <div class="story-history-item">
+                <div class="story-history-header">
+                  <span>{{ storyTask.date }}</span>
+                  <span class="story-history-scene">{{ storyTask.scene.title }}</span>
+                  <span>叙事评分：{{ storyTask.response.narrativeScore }}/5</span>
+                </div>
+                <div class="story-history-response">「{{ storyTask.response.childResponse }}」</div>
+              </div>
+            </template>
+            <div v-else class="empty" style="margin-top:8px">
+              <p>还没有故事任务记录 🎨</p>
+              <p>在「今日故事」中完成一次故事描述，记录会出现在这里。</p>
             </div>
           </template>
         </template>

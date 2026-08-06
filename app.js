@@ -357,6 +357,14 @@ const app = createApp({
       narrativeScore: 3,
       initiativeScore: 3
     });
+    // 今日故事任务
+    const storyTask = ref(null);
+    const storyTaskTab = ref('story'); // story | form | history
+    const storyForm = reactive({
+      childResponse: '',
+      narrativeScore: 3,
+      parentNotes: ''
+    });
     // 策略互动详情
     const strategyDetail = reactive({
       show: false,
@@ -864,6 +872,7 @@ const app = createApp({
         view.value = "home";
         selectedAge.value = saved.profile?.age || 4;
         communicationLogs.value = saved.communicationLogs || [];
+          storyTask.value = saved.storyTasks ? { scene: null, date: '', hasResponse: false, response: null } : null;
       } catch (err) {
         if (err.message.includes("401")) {
           view.value = "login";
@@ -1577,6 +1586,64 @@ const app = createApp({
         showToast(err.message);
       }
     }
+
+    // ---- 今日故事任务 ----
+    async function loadTodayStory() {
+      try {
+        const result = await api('/api/communication/story');
+        storyTask.value = result;
+        return result;
+      } catch (err) {
+        showToast(err.message);
+        return null;
+      }
+    }
+
+    async function saveStoryResponse() {
+      const childResponse = storyForm.childResponse.trim();
+      if (!childResponse) {
+        showToast('请记录宝宝的故事描述');
+        return;
+      }
+      const narrativeScore = storyForm.narrativeScore;
+      if (typeof narrativeScore !== 'number' || narrativeScore < 1 || narrativeScore > 5) {
+        showToast('叙事能力评分须在 1–5 之间');
+        return;
+      }
+      try {
+        const result = await api('/api/communication/story', {
+          method: 'POST',
+          body: JSON.stringify({
+            childResponse,
+            narrativeScore,
+            parentNotes: storyForm.parentNotes.trim(),
+            sceneId: storyTask.value?.scene?.id || ''
+          })
+        });
+        storyTask.value = { ...storyTask.value, hasResponse: true, response: result };
+        showToast('今日故事已记录');
+        storyTaskTab.value = 'story';
+      } catch (err) {
+        showToast(err.message);
+      }
+    }
+
+    function resetStoryForm() {
+      storyForm.childResponse = '';
+      storyForm.narrativeScore = 3;
+      storyForm.parentNotes = '';
+    }
+
+    function loadStoryResponse(response) {
+      if (response) {
+        storyForm.childResponse = response.childResponse || '';
+        storyForm.narrativeScore = response.narrativeScore || 3;
+        storyForm.parentNotes = response.parentNotes || '';
+      } else {
+        resetStoryForm();
+      }
+    }
+
     let reminderTimer = null;
     function scheduleReminder() {
       if (!("Notification" in window)) return;
@@ -1670,6 +1737,8 @@ const app = createApp({
       focusElapsed,
       // communication log state
       communicationLogs, communicationLogTab, communicationForm,
+      // story task state
+      storyTask, storyTaskTab, storyForm,
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
@@ -1701,6 +1770,8 @@ const app = createApp({
       // communication log methods
       getCurrentWeekId, getCurrentWeekCommunicationLog, getWeekLabel,
       resetCommunicationForm, loadCommunicationForm, saveCommunicationLog,
+      // story task methods
+      loadTodayStory, saveStoryResponse, resetStoryForm, loadStoryResponse,
       // constants
       SUBJECT_META, SUCCESS_SOUNDS, WEEKDAY_NAMES, localDate, makeSubjectLesson,
       completedTodaySubject, todayDraftSubject, streak, getTodaySubjects,

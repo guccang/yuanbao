@@ -229,6 +229,49 @@ function readJson(request) {
   });
 }
 
+// ---- 故事场景数据 ----
+const STORY_SCENES = [
+  { id: "park", title: "公园玩耍", setting: "🌳🌞🌷 一个阳光明媚的早晨，小公园里开满了鲜花，小鸟在树上唱歌。", characters: ["👧 小女孩", "🐕 小狗", "🦆 小鸭子"], objects: ["🪁 风筝", "⚽ 皮球", "🍞 面包"], actions: ["小女孩在草地上追着皮球跑", "小狗在旁边摇着尾巴跳来跳去", "小鸭子在水池里游来游去"] },
+  { id: "zoo", title: "动物园", setting: "🐘🦒🐒 动物园里好热闹，好多小朋友来看动物。", characters: ["👦 小男孩", "🦒 长颈鹿", "🐒 猴子"], objects: ["🍌 香蕉", "📷 相机", "🎈 气球"], actions: ["长颈鹿伸着长长的脖子吃树叶", "猴子在树上跳来跳去", "小男孩举着相机拍照"] },
+  { id: "kitchen", title: "厨房小帮手", setting: "🍳🥘🧑‍🍳 厨房里飘着香喷喷的味道，妈妈正在准备晚餐。", characters: ["👩 妈妈", "👧 小女孩", "🐱 小花猫"], objects: ["🥕 胡萝卜", "🍅 西红柿", "🥄 勺子"], actions: ["妈妈在切菜", "小女孩帮忙摆碗筷", "小花猫蹲在门口喵喵叫"] },
+  { id: "rainy", title: "下雨天", setting: "🌧️☁️💧 窗外下起了大雨，雨点噼里啪啦地敲着窗户。", characters: ["👦 小男孩", "🐸 小青蛙", "🐌 小蜗牛"], objects: ["☂️ 雨伞", "👢 雨靴", "🌊 水坑"], actions: ["小男孩穿上雨靴去踩水坑", "小青蛙在荷叶上呱呱叫", "小蜗牛慢慢地爬过小路"] },
+  { id: "farm", title: "农场的一天", setting: "🌾🐄🐓 农场里空气清新，小动物们都在忙碌着。", characters: ["👨‍🌾 农夫", "🐄 奶牛", "🐑 小羊"], objects: ["🌽 玉米", "🪣 水桶", "🚜 拖拉机"], actions: ["农夫在给奶牛挤奶", "小羊在草地上吃草", "拖拉机在田里突突地开"] },
+  { id: "beach", title: "海边玩耍", setting: "🏖️🌊☀️ 蓝蓝的大海，金色的沙滩，真美啊！", characters: ["👧 小女孩", "🐚 小螃蟹", "🐦 海鸥"], objects: ["🏐 沙滩球", "🪣 小桶", "⛱️ 遮阳伞"], actions: ["小女孩在沙滩上堆城堡", "小螃蟹在沙子里钻来钻去", "海鸥在天上飞过"] },
+  { id: "supermarket", title: "逛超市", setting: "🛒🏪🍎 超市里好多人，货架上摆满了各种各样的东西。", characters: ["👩 妈妈", "👦 小男孩", "🧑 收银员"], objects: ["🛒 购物车", "🍎 苹果", "🧸 玩具熊"], actions: ["妈妈在挑选水果", "小男孩想买一个玩具熊", "收银员在扫码结账"] },
+  { id: "birthday", title: "生日派对", setting: "🎂🎉🎈 今天是小朋友的生日，家里布置得好漂亮！", characters: ["🧒 小寿星", "👧 好朋友", "🤡 小丑"], objects: ["🎂 蛋糕", "🎁 礼物", "🎈 气球"], actions: ["小寿星吹灭了蜡烛", "好朋友送来了礼物", "小丑在表演魔术"] },
+  { id: "forest", title: "森林散步", setting: "🌲🌿🍄 森林里静悄悄的，阳光透过树叶洒下来。", characters: ["👦 小男孩", "🦊 小狐狸", "🦌 小鹿"], objects: ["🍓 草莓", "🌰 松果", "🧺 篮子"], actions: ["小男孩在采蘑菇", "小狐狸从树后探出脑袋", "小鹿在溪边喝水"] },
+  { id: "garden", title: "花园里", setting: "🌺🌻🦋 花园里开满了五颜六色的花，好香啊！", characters: ["👧 小女孩", "🐝 小蜜蜂", "🦋 蝴蝶"], objects: ["🌻 向日葵", "💧 洒水壶", "🧤 手套"], actions: ["小女孩在给花浇水", "小蜜蜂在花丛中采蜜", "蝴蝶在花朵上跳舞"] },
+  { id: "space", title: "太空探险", setting: "🌍🚀⭐ 无边的太空中，星星在闪闪发光。", characters: ["🧑‍🚀 宇航员", "🤖 机器人", "👽 外星人"], objects: ["🚀 火箭", "🛸 飞碟", "🔭 望远镜"], actions: ["宇航员在太空漫步", "机器人在修理飞船", "外星人从飞碟里探出头打招呼"] },
+  { id: "ocean", title: "海底世界", setting: "🌊🐠🪸 海底世界真奇妙，五颜六色的鱼游来游去。", characters: ["🤿 潜水员", "🐙 小章鱼", "🐢 海龟"], objects: ["🐚 海螺", "💎 宝石", "🪸 珊瑚"], actions: ["潜水员在探索海底", "小章鱼的触手在舞动", "海龟慢悠悠地游过"] },
+  { id: "playground", title: "游乐场", setting: "🎡🎠🎢 游乐场里好热闹，到处是小朋友的欢笑声。", characters: ["👦 小男孩", "👧 小女孩", "🧒 小朋友"], objects: ["🎡 摩天轮", "🎠 旋转木马", "🍭 棒棒糖"], actions: ["小男孩在坐旋转木马", "小女孩在玩滑梯", "小朋友们排队买棉花糖"] },
+  { id: "school", title: "幼儿园", setting: "🏫🎒📚 幼儿园里，小朋友们正在上课。", characters: ["👩‍🏫 老师", "👦 小朋友", "👧 小朋友"], objects: ["📖 故事书", "🖍️ 蜡笔", "🧩 拼图"], actions: ["老师在讲故事", "小朋友们在画画", "两个小朋友一起拼拼图"] },
+  { id: "hospital", title: "看医生", setting: "🏥🩺💊 医院里，熊医生正在给小动物们看病。", characters: ["🧑‍⚕️ 熊医生", "🐻 小熊", "🐰 小兔子"], objects: ["🩺 听诊器", "💉 针筒", "🍬 糖果"], actions: ["熊医生给小熊量体温", "小兔子在排队等候", "小熊勇敢地伸出手打针"] },
+  { id: "grandma", title: "外婆家", setting: "🏠🌳🍵 外婆家的小院子里，大树下放着摇椅。", characters: ["👵 外婆", "👦 小男孩", "🐶 小狗"], objects: ["🍪 饼干", "📚 故事书", "🪑 摇椅"], actions: ["外婆在摇椅上织毛衣", "小男孩在吃饼干", "小狗趴在脚边睡觉"] },
+  { id: "restaurant", title: "餐厅吃饭", setting: "🍜🥢🏮 餐厅里飘着饭菜的香味，灯笼红彤彤的。", characters: ["👨‍🍳 厨师", "👧 小女孩", "👨 爸爸"], objects: ["🍜 面条", "🥟 饺子", "🥢 筷子"], actions: ["厨师在厨房里炒菜", "小女孩用筷子夹饺子", "爸爸在倒茶"] },
+  { id: "snow", title: "下雪天", setting: "❄️⛄🌨️ 窗外飘起了雪花，整个世界都变白了。", characters: ["👦 小男孩", "☃️ 雪人", "🐧 小企鹅"], objects: ["⛷️ 雪橇", "🧣 围巾", "🥕 胡萝卜"], actions: ["小男孩在堆雪人", "雪人戴着围巾微笑", "小企鹅在雪地上滑冰"] },
+  { id: "sports", title: "动物运动会", setting: "🏟️🏅🎉 森林里正在开运动会，小动物们都来参加。", characters: ["🐰 小兔子", "🐢 小乌龟", "🦘 袋鼠"], objects: ["🏅 金牌", "🏁 终点线", "🥇 奖杯"], actions: ["小兔子飞快地跑着", "小乌龟慢慢地但坚持着", "袋鼠跳得最高"] },
+  { id: "dinosaur", title: "恐龙世界", setting: "🌋🌿🦕 回到恐龙时代，巨大的恐龙在丛林里漫步。", characters: ["🦕 梁龙", "🦖 霸王龙", "🐣 小恐龙"], objects: ["🌴 大树", "🪨 大石头", "🥚 恐龙蛋"], actions: ["梁龙伸着长脖子吃树叶", "霸王龙在远处咆哮", "小恐龙从蛋里钻出来"] },
+  { id: "castle", title: "童话城堡", setting: "🏰👑✨ 美丽的城堡里，公主和王子正在跳舞。", characters: ["👸 公主", "🤴 王子", "🐉 小龙"], objects: ["👑 王冠", "💎 宝石", "🪄 魔法棒"], actions: ["公主在花园里散步", "王子骑着白马赶来", "小龙在城堡上空飞翔"] },
+  { id: "traffic", title: "交通工具", setting: "🚗🚌🚂 马路上来来往往的车辆，真热闹。", characters: ["👮 交警", "🚌 公交车司机", "🚗 小汽车司机"], objects: ["🚦 红绿灯", "🚧 路标", "🚒 消防车"], actions: ["交警在指挥交通", "公交车载着乘客行驶", "消防车鸣着笛开过去"] },
+  { id: "camping", title: "去露营", setting: "🏕️🔥🌌 夜晚的星空下，帐篷搭在小河边。", characters: ["👨 爸爸", "👦 小男孩", "🦝 小浣熊"], objects: ["🏕️ 帐篷", "🔥 篝火", "⭐ 星星"], actions: ["爸爸在搭帐篷", "小男孩在数星星", "小浣熊偷偷靠近食物"] },
+  { id: "circus", title: "马戏团", setting: "🎪🤹🎭 大大的马戏团帐篷里，观众们都在鼓掌。", characters: ["🤹 小丑", "🐘 大象", "🦁 狮子"], objects: ["🎪 帐篷", "🔥 火圈", "⚽ 彩球"], actions: ["小丑在抛彩球", "大象用鼻子卷起木头", "狮子跳过火圈"] },
+  { id: "spring", title: "春天来了", setting: "🌸🌱🐦 春天来了，花儿开了，小草绿了。", characters: ["👧 小女孩", "🐰 小兔子", "🐦 小鸟"], objects: ["🌸 花朵", "🪴 花盆", "💧 水壶"], actions: ["小女孩在种花", "小兔子在草地上打滚", "小鸟在树上筑巢"] }
+];
+
+// 确定性选择故事场景
+function getStoryScene(dateKey, age) {
+  const dayNum = dateKey.split("-").reduce((a, b) => a + parseInt(b, 10), 0);
+  const index = (dayNum + age * 7) % STORY_SCENES.length;
+  const scene = { ...STORY_SCENES[index] };
+  scene.prompt = age <= 4
+    ? "看一看这幅图，告诉妈妈/爸爸你看到了什么？"
+    : "仔细观察这幅图，用完整的句子描述一下发生了什么事？";
+  scene.challenge = age >= 5
+    ? "你觉得接下来会发生什么？给这个故事编一个结尾吧！"
+    : "";
+  return scene;
+}
+
 // ---- 导出 HTML ----
 function generateExportHtml(account) {
   const profile = account.profile || {};
@@ -457,7 +500,8 @@ async function handleApi(request, response, requestPath) {
         avatar: "🐣"
       },
       records: [],
-      schedule: { ...DEFAULT_SCHEDULE }
+      schedule: { ...DEFAULT_SCHEDULE },
+      storyTasks: []
     };
     rateLimitReset(request);
     createSession(response, accountId);
@@ -510,7 +554,8 @@ async function handleApi(request, response, requestPath) {
       emotionCheckins: account.emotionCheckins || [],
       emotionGames: account.emotionGames || [],
       strategyRecords: account.strategyRecords || [],
-      communicationLogs: account.communicationLogs || []
+      communicationLogs: account.communicationLogs || [],
+      storyTasks: account.storyTasks || []
     });
   }
 
@@ -746,6 +791,46 @@ async function handleApi(request, response, requestPath) {
 
 	  if (requestPath === "/api/communication/log" && request.method === "GET") {
 	    return sendJson(response, 200, (account.communicationLogs || []).sort((a, b) => b.weekId.localeCompare(a.weekId)));
+	  }
+
+	  // ---- 今日故事任务 ----
+	  if (requestPath === "/api/communication/story" && request.method === "GET") {
+	    const now = new Date();
+	    const offset = now.getTimezoneOffset() * 60000;
+	    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+	    const age = account.profile?.age || 4;
+	    const scene = getStoryScene(todayKey, age);
+	    const existing = (account.storyTasks || []).find(s => s.date === todayKey);
+	    return sendJson(response, 200, { scene, date: todayKey, hasResponse: !!existing, response: existing || null });
+	  }
+
+	  if (requestPath === "/api/communication/story" && request.method === "POST") {
+	    const { childResponse, narrativeScore, parentNotes, sceneId } = await readJson(request);
+	    if (!childResponse || typeof childResponse !== "string" || childResponse.trim().length < 1) {
+	      return sendJson(response, 400, { error: "请记录宝宝的故事描述" });
+	    }
+	    if (typeof narrativeScore !== "number" || narrativeScore < 1 || narrativeScore > 5) {
+	      return sendJson(response, 400, { error: "叙事能力评分须在 1–5 之间" });
+	    }
+	    if (!account.storyTasks) account.storyTasks = [];
+	    const now = new Date();
+	    const offset = now.getTimezoneOffset() * 60000;
+	    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+	    const age = account.profile?.age || 4;
+	    const scene = getStoryScene(todayKey, age);
+	    const entry = {
+	      date: todayKey,
+	      sceneId: sceneId || scene.id,
+	      childResponse: childResponse.trim().slice(0, 500),
+	      narrativeScore,
+	      parentNotes: (parentNotes || "").trim().slice(0, 200),
+	      createdAt: new Date().toISOString()
+	    };
+	    const existing = account.storyTasks.findIndex(s => s.date === todayKey);
+	    if (existing === -1) account.storyTasks.push(entry);
+	    else account.storyTasks[existing] = entry;
+	    await persistState();
+	    return sendJson(response, 200, entry);
 	  }
 
 	  // ---- 列出账户（用于切换） ----
