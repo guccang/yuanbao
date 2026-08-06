@@ -62,6 +62,33 @@ const EMOTION_STRATEGIES = {
   ]
 };
 
+// ======================== 策略互动配置 ========================
+const STRATEGY_INTERACTIONS = {
+  jump:     { pattern: "tap",   maxProgress: 10, emojis: ["🏃","💨","⬆️","⭐","🌟"], hint: "点一点，让小人在你指尖跳跃！跳够 10 下就完成啦" },
+  stretch:  { pattern: "tap",   maxProgress: 5,  emojis: ["🤸","🌱","📏","☀️","🌈"], hint: "点一点，帮助小树越长越高！伸 5 次懒腰就完成啦" },
+  music:    { pattern: "tap",   maxProgress: 5,  emojis: ["🎵","🎶","🎼","🎹","🎤"], hint: "点一点，弹奏出美妙的音符！听完 5 个音符就完成啦" },
+  breathe:  { pattern: "balloon", maxProgress: 5, emojis: ["🎈","💨","🌬️","💭","✨"], hint: "点一点吹气球，慢慢吸气再呼气，气球会越来越大" },
+  count:    { pattern: "tap",   maxProgress: 10, emojis: ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"], hint: "从 1 数到 10，一个一个点过来" },
+  mindful:  { pattern: "find",  maxProgress: 5,  emojis: ["👀","🌈","🎨","🔍","✨"], hint: "找到所有隐藏的东西，点它们！" },
+  balloon:  { pattern: "balloon", maxProgress: 5, emojis: ["🎈","💨","🌬️","💭","✨"], hint: "点一下吹一口气，把气球吹大！" },
+  count10:  { pattern: "tap",   maxProgress: 10, emojis: ["🔟","9️⃣","8️⃣","7️⃣","6️⃣","5️⃣","4️⃣","3️⃣","2️⃣","1️⃣"], hint: "从 10 数到 1，一个一个点过来" },
+  quiet:    { pattern: "calm",  maxProgress: 5,  emojis: ["🌙","⭐","✨","🌌","💫"], hint: "点一点夜空，放一颗星星，让心情平静下来" },
+  water:    { pattern: "tap",   maxProgress: 5,  emojis: ["💧","🚰","🥤","💦","🌊"], hint: "点一点喝口水，让身体舒服起来！喝 5 口就完成啦" },
+  hug:      { pattern: "tap",   maxProgress: 5,  emojis: ["🧸","❤️","🤗","💕","🌺"], hint: "点一点抱抱小玩偶，感受温暖！抱 5 次就完成啦" },
+  butterfly:{ pattern: "tap",   maxProgress: 8,  emojis: ["🦋","💫","🌸","🌼","🌺","🦋","✨","🌈"], hint: "点一点，让蝴蝶翅膀轻轻拍动！拍 8 下就完成啦" }
+};
+
+const STRATEGY_ENCOURAGEMENTS = [
+  "太棒啦！你做到了！🌟",
+  "真厉害，继续加油！💪",
+  "做得真好，为你骄傲！🎉",
+  "好样的！你越来越棒了！✨",
+  "太厉害了，宝宝真聪明！🌈",
+  "完美！你真是个小勇士！🏆",
+  "真了不起，坚持就是胜利！⭐",
+  "哇，你完成得真棒！🎊"
+];
+
 // ======================== API Helpers ========================
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -318,6 +345,24 @@ const app = createApp({
     const strategyRecords = ref([]);
     const strategyAnimating = ref(null);
     const strategyUsed = ref([]);
+    // 策略互动详情
+    const strategyDetail = reactive({
+      show: false,
+      strategy: null,
+      zone: null,
+      pattern: 'tap',
+      progress: 0,
+      maxProgress: 10,
+      step: 0
+    });
+    const strategyTapAnimate = ref(false);
+    const strategyTimerStart = ref(null);
+    const strategyTimerElapsed = ref(0);
+    let strategyTimerInterval = null;
+    const strategyCompleted = ref(false);
+    const strategyFindObjects = ref([]);
+    const strategyCalmStars = ref([]);
+    const strategyTapEmoji = ref('');
     // 成长页面 Tab 切换
     const progressTab = ref("overview"); // overview | weekly
     // 表单
@@ -1065,6 +1110,49 @@ const app = createApp({
       return { total, byZone, byStrategy };
     });
 
+    // ---- 策略互动计算属性 ----
+    const strategyTimerDisplay = computed(() => {
+      const secs = strategyTimerElapsed.value;
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      return (m > 0 ? m + '分' : '') + s + '秒';
+    });
+
+    const strategyProgressPercent = computed(() => {
+      if (!strategyDetail.maxProgress) return 0;
+      return Math.min(100, Math.round(strategyDetail.progress / strategyDetail.maxProgress * 100));
+    });
+
+    const strategyCanComplete = computed(() => {
+      return strategyDetail.progress >= strategyDetail.maxProgress;
+    });
+
+    const strategyActionHint = computed(() => {
+      if (!strategyDetail.strategy) return '';
+      const interaction = STRATEGY_INTERACTIONS[strategyDetail.strategy.id];
+      if (!interaction) return '';
+      if (strategyDetail.progress >= strategyDetail.maxProgress) return '🎉 完成啦！点击下方按钮结束练习';
+      if (strategyDetail.pattern === 'find') {
+        const remaining = strategyDetail.maxProgress - strategyDetail.progress;
+        return '还剩下 ' + remaining + ' 样东西没找到，继续找找看！';
+      }
+      return interaction.hint || '点一点，完成练习吧！';
+    });
+
+    const strategyEncouragement = computed(() => {
+      const idx = strategyDetail.progress % STRATEGY_ENCOURAGEMENTS.length;
+      return STRATEGY_ENCOURAGEMENTS[idx] || '太棒啦！';
+    });
+
+    const strategyFindRemaining = computed(() => {
+      return strategyDetail.maxProgress - strategyDetail.progress;
+    });
+
+    const strategyBalloonScale = computed(() => {
+      const pct = strategyDetail.progress / Math.max(1, strategyDetail.maxProgress);
+      return 0.5 + pct * 0.8;
+    });
+
     function getStrategyById(zone, id) {
       const strategies = EMOTION_STRATEGIES[zone] || [];
       return strategies.find(s => s.id === id) || null;
@@ -1073,18 +1161,195 @@ const app = createApp({
     async function tryStrategy(strategy) {
       if (strategyAnimating.value) return;
       strategyAnimating.value = strategy.id;
-      playFeedbackSound('correct');
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      strategyUsed.value.push(strategy.id);
+      await new Promise(resolve => setTimeout(resolve, 300));
       strategyAnimating.value = null;
-      try {
-        const result = await api('/api/emotion/strategy', {
-          method: 'POST',
-          body: JSON.stringify({ zone: selectedZone.value, strategy: strategy.id })
-        });
-        strategyRecords.value.push(result);
-      } catch (err) {
-        console.error(err);
+      // 打开策略互动详情
+      openStrategyDetail(strategy);
+    }
+
+    // ---- 策略互动方法 ----
+    function openStrategyDetail(strategy) {
+      const interaction = STRATEGY_INTERACTIONS[strategy.id] || { pattern: 'tap', maxProgress: 5, emojis: ['⭐'], hint: '完成练习' };
+
+      strategyDetail.show = true;
+      strategyDetail.strategy = strategy;
+      strategyDetail.zone = selectedZone.value;
+      strategyDetail.pattern = interaction.pattern;
+      strategyDetail.progress = 0;
+      strategyDetail.maxProgress = interaction.maxProgress;
+      strategyDetail.step = 0;
+      strategyTapAnimate.value = false;
+      strategyCompleted.value = false;
+      strategyTimerElapsed.value = 0;
+      strategyTapEmoji.value = interaction.emojis[0] || strategy.emoji;
+
+      // 初始化寻物模式
+      if (interaction.pattern === 'find') {
+        const colors = ['#ff8d72', '#75a7ed', '#55b98b', '#ffd86f', '#a58ae5'];
+        const labels = ['红色的东西', '蓝色的东西', '绿色的东西', '黄色的东西', '紫色的东西'];
+        strategyFindObjects.value = Array.from({ length: 5 }, (_, i) => ({
+          color: colors[i % colors.length],
+          label: labels[i % labels.length],
+          found: false
+        }));
+      }
+
+      // 初始化宁静模式
+      if (interaction.pattern === 'calm') {
+        strategyCalmStars.value = [];
+      }
+
+      // 开始计时
+      startStrategyTimer();
+    }
+
+    function closeStrategyDetail() {
+      strategyDetail.show = false;
+      strategyDetail.strategy = null;
+      stopStrategyTimer();
+      // 如果已完成，记录到已使用列表
+      if (strategyCompleted.value && strategyDetail.strategy) {
+        if (!strategyUsed.value.includes(strategyDetail.strategy.id)) {
+          strategyUsed.value.push(strategyDetail.strategy.id);
+        }
+      }
+    }
+
+    function doStrategyAction() {
+      if (strategyCompleted.value) return;
+      const strategy = strategyDetail.strategy;
+      if (!strategy) return;
+      const interaction = STRATEGY_INTERACTIONS[strategy.id];
+      if (!interaction) return;
+
+      if (strategyDetail.pattern === 'tap') {
+        // 点击模式：每次点击推进进度
+        const nextProgress = strategyDetail.progress + 1;
+        strategyDetail.progress = Math.min(nextProgress, strategyDetail.maxProgress);
+
+        // 更新显示的 emoji
+        if (nextProgress <= interaction.emojis.length) {
+          strategyTapEmoji.value = interaction.emojis[nextProgress - 1];
+        }
+
+        // 播放点击动画
+        strategyTapAnimate.value = true;
+        setTimeout(() => { strategyTapAnimate.value = false; }, 350);
+
+        // 音效反馈
+        playFeedbackSound('correct');
+
+        if (nextProgress >= strategyDetail.maxProgress) {
+          // 完成时绽放粒子效果
+          celebrateWithParticles('correct', 20);
+        }
+      } else if (strategyDetail.pattern === 'balloon') {
+        // 气球模式：每次点击气球变大
+        const nextProgress = strategyDetail.progress + 1;
+        strategyDetail.progress = Math.min(nextProgress, strategyDetail.maxProgress);
+
+        // 吹气动画
+        strategyTapAnimate.value = true;
+        setTimeout(() => { strategyTapAnimate.value = false; }, 300);
+
+        playFeedbackSound('correct');
+
+        if (nextProgress >= strategyDetail.maxProgress) {
+          // 气球吹满后绽放
+          setTimeout(() => {
+            celebrateWithParticles('correct', 25);
+          }, 200);
+        }
+      } else if (strategyDetail.pattern === 'calm') {
+        // 宁静模式：添加星星
+        const star = {
+          x: 15 + Math.random() * 70,
+          y: 10 + Math.random() * 60,
+          delay: 0
+        };
+        strategyCalmStars.value.push(star);
+        const nextProgress = strategyDetail.progress + 1;
+        strategyDetail.progress = Math.min(nextProgress, strategyDetail.maxProgress);
+
+        // 柔和音效
+        playFeedbackSound('correct');
+
+        if (nextProgress >= strategyDetail.maxProgress) {
+          setTimeout(() => {
+            celebrateWithParticles('correct', 15);
+          }, 300);
+        }
+      }
+    }
+
+    function findObject(index) {
+      if (strategyCompleted.value) return;
+      const obj = strategyFindObjects.value[index];
+      if (!obj || obj.found) return;
+
+      obj.found = true;
+      strategyDetail.progress = Math.min(strategyDetail.progress + 1, strategyDetail.maxProgress);
+
+      // 发现动画
+      playFeedbackSound('correct');
+
+      if (strategyDetail.progress >= strategyDetail.maxProgress) {
+        setTimeout(() => {
+          celebrateWithParticles('correct', 25);
+        }, 300);
+      }
+    }
+
+    async function completeStrategy() {
+      if (!strategyCanComplete.value) return;
+      if (strategyCompleted.value) return;
+
+      stopStrategyTimer();
+      strategyCompleted.value = true;
+
+      // 记录策略使用
+      const strategy = strategyDetail.strategy;
+      if (strategy) {
+        try {
+          const result = await api('/api/emotion/strategy', {
+            method: 'POST',
+            body: JSON.stringify({
+              zone: selectedZone.value,
+              strategy: strategy.id,
+              duration: strategyTimerElapsed.value
+            })
+          });
+          strategyRecords.value.push(result);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      // 记录到已使用列表
+      if (!strategyUsed.value.includes(strategy.id)) {
+        strategyUsed.value.push(strategy.id);
+      }
+
+      // 完成庆祝
+      celebrateWithParticles('complete', 30);
+      playFeedbackSound('complete');
+    }
+
+    function startStrategyTimer() {
+      stopStrategyTimer();
+      strategyTimerStart.value = Date.now();
+      strategyTimerElapsed.value = 0;
+      strategyTimerInterval = setInterval(() => {
+        if (strategyTimerStart.value) {
+          strategyTimerElapsed.value = Math.floor((Date.now() - strategyTimerStart.value) / 1000);
+        }
+      }, 1000);
+    }
+
+    function stopStrategyTimer() {
+      if (strategyTimerInterval) {
+        clearInterval(strategyTimerInterval);
+        strategyTimerInterval = null;
       }
     }
 
@@ -1239,12 +1504,18 @@ const app = createApp({
       emotionCheckins, showEmotionCheckin, selectedZone, emotionCheckinDone,
       emotionGames, emotionGameView, emotionGameIndex, emotionGameAnswers, emotionGameScore,
       strategyRecords, strategyAnimating, strategyUsed,
+      // strategy detail state
+      strategyDetail, strategyTapAnimate, strategyTimerElapsed,
+      strategyCompleted, strategyFindObjects, strategyCalmStars, strategyTapEmoji,
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
       navItems, achievements, wrongAnswers,
       currentEmotionQuestion, emotionGameProgress,
       currentStrategies, strategyStats, getStrategyById,
+      // strategy detail computed
+      strategyTimerDisplay, strategyProgressPercent, strategyCanComplete,
+      strategyActionHint, strategyEncouragement, strategyFindRemaining, strategyBalloonScale,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
@@ -1259,13 +1530,15 @@ const app = createApp({
       // emotion methods
       openEmotionCheckin, doEmotionCheckin, closeEmotionCheckin, todayEmotionCheckin,
       tryStrategy,
+      openStrategyDetail, closeStrategyDetail, doStrategyAction, findObject, completeStrategy,
       startEmotionGame, answerEmotionGame, finishEmotionGame, exitEmotionGame,
       emotionGameAnswerClass, emotionGameAccuracy, emotionGameTotalGames,
       // constants
       SUBJECT_META, SUCCESS_SOUNDS, WEEKDAY_NAMES, localDate, makeSubjectLesson,
       completedTodaySubject, todayDraftSubject, streak, getTodaySubjects,
       celebrateWithParticles, playFeedbackSound,
-      EMOTION_ZONES, EMOTION_GAME_QUESTIONS, EMOTION_STRATEGIES
+      EMOTION_ZONES, EMOTION_GAME_QUESTIONS, EMOTION_STRATEGIES,
+      STRATEGY_INTERACTIONS, STRATEGY_ENCOURAGEMENTS
     };
   }
 });

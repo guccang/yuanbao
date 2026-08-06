@@ -653,6 +653,135 @@
       </div>
     </Teleport>
 
+    <!-- ==================== 策略互动详情弹窗 ==================== -->
+    <Teleport to="body">
+      <div v-if="strategyDetail.show" class="strategy-detail-overlay" @click.self="closeStrategyDetail">
+        <div class="strategy-detail-dialog">
+          <!-- 头部 -->
+          <div class="strategy-detail-header">
+            <button class="strategy-detail-close" @click="closeStrategyDetail" aria-label="关闭">✕</button>
+            <div class="strategy-detail-title-row">
+              <span class="strategy-detail-emoji">{{ strategyDetail.strategy?.emoji }}</span>
+              <div>
+                <h3>{{ strategyDetail.strategy?.name }}</h3>
+                <p>{{ strategyDetail.strategy?.desc }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 计时器 -->
+          <div class="strategy-timer">
+            <span class="strategy-timer-icon">⏱️</span>
+            <span class="strategy-timer-value">{{ strategyTimerDisplay }}</span>
+          </div>
+
+          <!-- 互动游戏区域 -->
+          <div class="strategy-game-area" @click="doStrategyAction">
+            <!-- 通用点击模式 (jump, stretch, count, count10, water, hug, butterfly, music) -->
+            <template v-if="strategyDetail.pattern === 'tap'">
+              <div class="strategy-tap-area" :class="'strategy-tap-' + strategyDetail.strategy?.id">
+                <div class="strategy-tap-emoji" :class="{ 'strategy-tap-animate': strategyTapAnimate }">
+                  {{ strategyTapEmoji }}
+                </div>
+                <div class="strategy-tap-count" v-if="strategyDetail.progress > 0">
+                  {{ strategyDetail.progress }}/{{ strategyDetail.maxProgress }}
+                </div>
+              </div>
+            </template>
+
+            <!-- 气球/呼吸模式 (breathe, balloon) -->
+            <template v-else-if="strategyDetail.pattern === 'balloon'">
+              <div class="strategy-balloon-area">
+                <div class="strategy-balloon-wrapper">
+                  <div class="strategy-balloon" :style="{ transform: 'scale(' + strategyBalloonScale + ')' }">
+                    🎈
+                  </div>
+                </div>
+                <div class="strategy-balloon-hint" v-if="strategyDetail.progress < strategyDetail.maxProgress">
+                  <span v-if="strategyDetail.strategy?.id === 'breathe'">👆 点点点，慢慢吹气~</span>
+                  <span v-else>👆 点一下吹一口气</span>
+                </div>
+                <div class="strategy-balloon-hint" v-else>
+                  <span class="strategy-balloon-pop">💥 气球吹好啦！</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 寻物模式 (mindful) -->
+            <template v-else-if="strategyDetail.pattern === 'find'">
+              <div class="strategy-find-area">
+                <div class="strategy-find-grid">
+                  <div v-for="(obj, i) in strategyFindObjects" :key="i"
+                    class="strategy-find-item"
+                    :class="{ 'strategy-find-found': obj.found }"
+                    @click.stop="findObject(i)"
+                    :style="'--obj-color:' + obj.color">
+                    <span class="strategy-find-emoji">{{ obj.found ? '✨' : '❓' }}</span>
+                    <span v-if="obj.found" class="strategy-find-label">{{ obj.label }}</span>
+                  </div>
+                </div>
+                <div class="strategy-find-hint">
+                  <template v-if="strategyFindRemaining > 0">
+                    找一找周围 <strong>{{ strategyFindRemaining }}</strong> 样东西，点一下找到它！
+                  </template>
+                  <template v-else>
+                    🎉 全部找到啦！你观察得真仔细！
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- 宁静模式 (quiet) -->
+            <template v-else-if="strategyDetail.pattern === 'calm'">
+              <div class="strategy-calm-area">
+                <div class="strategy-calm-stars">
+                  <div v-for="(star, i) in strategyCalmStars" :key="i"
+                    class="strategy-calm-star"
+                    :style="{ left: star.x + '%', top: star.y + '%', animationDelay: star.delay + 's' }">
+                    ✨
+                  </div>
+                </div>
+                <div class="strategy-calm-hint">
+                  <template v-if="strategyDetail.progress < strategyDetail.maxProgress">
+                    点一下夜空，放一颗星星 ✨
+                  </template>
+                  <template v-else>
+                    🌙 好美的星空，心情平静下来了吗？
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- 进度条 -->
+          <div class="strategy-progress-track">
+            <div class="strategy-progress-bar">
+              <i :style="{ width: strategyProgressPercent + '%' }"></i>
+            </div>
+            <span class="strategy-progress-text">{{ Math.min(strategyDetail.progress, strategyDetail.maxProgress) }}/{{ strategyDetail.maxProgress }}</span>
+          </div>
+
+          <!-- 操作提示 -->
+          <p class="strategy-action-hint">{{ strategyActionHint }}</p>
+
+          <!-- 完成按钮 -->
+          <button v-if="!strategyCompleted" class="primary-btn green" @click="completeStrategy" :disabled="!strategyCanComplete">
+            {{ strategyCanComplete ? '✓ 完成练习' : '继续加油...' }}
+          </button>
+
+          <!-- 完成后的鼓励反馈 -->
+          <div v-if="strategyCompleted" class="strategy-complete-feedback">
+            <div class="strategy-complete-icon">🌟</div>
+            <div class="strategy-complete-copy">
+              <strong>{{ strategyEncouragement }}</strong>
+              <span>练习用时 {{ strategyTimerDisplay }}</span>
+            </div>
+            <button class="primary-btn green" @click="closeStrategyDetail">好啦，继续学习 →</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- ==================== 答题反馈面板 ==================== -->
     <Teleport to="body">
       <div v-if="feedback" class="feedback-sheet" :class="feedbackCss">
