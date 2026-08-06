@@ -512,7 +512,8 @@ async function handleApi(request, response, requestPath) {
       records: account.records || [],
       schedule: account.schedule || DEFAULT_SCHEDULE,
       emotionCheckins: account.emotionCheckins || [],
-      emotionGames: account.emotionGames || []
+      emotionGames: account.emotionGames || [],
+      strategyRecords: account.strategyRecords || []
     });
   }
 
@@ -629,6 +630,47 @@ async function handleApi(request, response, requestPath) {
 	    else account.emotionCheckins[existing] = checkin;
 	    await persistState();
 	    return sendJson(response, 200, checkin);
+	  }
+
+	  // ---- 情绪调节策略记录 ----
+	  if (requestPath === "/api/emotion/strategy" && request.method === "POST") {
+	    const { zone, strategy } = await readJson(request);
+	    if (!["blue", "green", "yellow", "red"].includes(zone)) {
+	      return sendJson(response, 400, { error: "情绪分区无效" });
+	    }
+	    if (!strategy || typeof strategy !== "string") {
+	      return sendJson(response, 400, { error: "策略标识无效" });
+	    }
+	    if (!account.strategyRecords) account.strategyRecords = [];
+	    const today = new Date();
+	    const offset = today.getTimezoneOffset() * 60000;
+	    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+	    const record = {
+	      date: todayKey,
+	      zone,
+	      strategy,
+	      usedAt: new Date().toISOString()
+	    };
+	    account.strategyRecords.push(record);
+	    await persistState();
+	    return sendJson(response, 200, record);
+	  }
+
+	  // ---- 情绪调节策略统计 ----
+	  if (requestPath === "/api/emotion/strategy/stats" && request.method === "GET") {
+	    const records = account.strategyRecords || [];
+	    const byZone = {};
+	    const byStrategy = {};
+	    for (const r of records) {
+	      byZone[r.zone] = (byZone[r.zone] || 0) + 1;
+	      byStrategy[r.strategy] = (byStrategy[r.strategy] || 0) + 1;
+	    }
+	    return sendJson(response, 200, {
+	      total: records.length,
+	      byZone,
+	      byStrategy,
+	      recent: records.slice(-20).reverse()
+	    });
 	  }
 
 	  // ---- 情绪识别游戏 ----

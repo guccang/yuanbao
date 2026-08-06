@@ -352,6 +352,37 @@
             <div class="history-score" :style="{ color: g.score >= 5 ? 'var(--green)' : 'var(--orange)' }">{{ g.score >= 5 ? '🌟' : '💪' }}</div>
           </article>
         </section>
+        <div class="section-heading" v-if="strategyRecords.length"><h2>🧘 调节策略</h2><span>已尝试 {{ strategyStats.total }} 次</span></div>
+        <section class="strategy-stats" v-if="strategyRecords.length">
+          <div class="strategy-stats-grid">
+            <div class="strategy-stat-card">
+              <i>🔢</i>
+              <b>{{ strategyStats.total }}</b>
+              <span>使用次数</span>
+            </div>
+            <div class="strategy-stat-card">
+              <i>🌈</i>
+              <b>{{ Object.keys(strategyStats.byZone).length }}</b>
+              <span>覆盖分区</span>
+            </div>
+            <div class="strategy-stat-card">
+              <i>🏆</i>
+              <b>{{ Object.keys(strategyStats.byStrategy).length }}</b>
+              <span>不同策略</span>
+            </div>
+          </div>
+          <div class="strategy-zone-breakdown">
+            <div v-for="(count, zone) in strategyStats.byZone" :key="zone" class="strategy-zone-row">
+              <span class="strategy-zone-tag" :style="'--zone-color:' + (EMOTION_ZONES.find(z => z.id === zone)?.color || 'var(--muted)')">
+                {{ EMOTION_ZONES.find(z => z.id === zone)?.emoji || '❓' }} {{ EMOTION_ZONES.find(z => z.id === zone)?.label || zone }}
+              </span>
+              <div class="strategy-zone-bar">
+                <i :style="'width:' + Math.round(count / Math.max(...Object.values(strategyStats.byZone)) * 100) + '%'"></i>
+              </div>
+              <span class="strategy-zone-count">{{ count }} 次</span>
+            </div>
+          </div>
+        </section>
         <div class="section-heading" v-if="wrongAnswers.length"><h2>📝 错题本</h2><span>收集了 {{ wrongAnswers.length }} 道错题</span></div>
         <section class="history-list" v-if="wrongAnswers.length">
           <article v-for="(w, i) in wrongAnswers" :key="i" class="history-item">
@@ -468,6 +499,34 @@
             <div>
               <strong>{{ EMOTION_ZONES.find(z => z.id === selectedZone)?.label }}</strong>
               <p>{{ EMOTION_ZONES.find(z => z.id === selectedZone)?.suggestion }}</p>
+            </div>
+          </div>
+
+          <!-- 情绪调节策略卡片 -->
+          <div v-if="selectedZone" class="emotion-strategies">
+            <h4 class="strategy-section-title">🧘 试试这些调节策略</h4>
+            <p class="strategy-section-hint">点一点卡片，跟着做一做，心情会变好哦</p>
+            <div class="strategy-card-grid">
+              <div v-for="s in currentStrategies" :key="s.id"
+                class="strategy-card"
+                :class="{
+                  'strategy-animating': strategyAnimating === s.id,
+                  'strategy-done': strategyUsed.includes(s.id)
+                }"
+                @click="tryStrategy(s)">
+                <div class="strategy-card-emoji">
+                  <span class="strategy-card-emoji-inner">{{ s.emoji }}</span>
+                </div>
+                <div class="strategy-card-body">
+                  <strong class="strategy-card-name">{{ s.name }}</strong>
+                  <p class="strategy-card-desc">{{ s.desc }}</p>
+                </div>
+                <div class="strategy-card-status">
+                  <span v-if="strategyUsed.includes(s.id)" class="strategy-done-mark">✓</span>
+                  <span v-else-if="strategyAnimating === s.id" class="strategy-animating-mark">⋯</span>
+                  <span v-else class="strategy-try-mark">→</span>
+                </div>
+              </div>
             </div>
           </div>
           <button v-if="selectedZone" class="primary-btn green" @click="closeEmotionCheckin">知道了，开始学习吧 →</button>

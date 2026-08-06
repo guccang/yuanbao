@@ -38,6 +38,30 @@ const EMOTION_GAME_QUESTIONS = [
   { emoji: "😅", answer: "尴尬", options: ["开心", "害怕", "尴尬", "生气"] }
 ];
 
+// ======================== 情绪调节策略 ========================
+const EMOTION_STRATEGIES = {
+  blue: [
+    { id: "jump", name: "跳跃运动", emoji: "🏃", desc: "站起来跳一跳，让身体热起来！", animation: "jump" },
+    { id: "stretch", name: "拉伸", emoji: "🤸", desc: "伸个懒腰，像小树一样长高！", animation: "stretch" },
+    { id: "music", name: "听音乐", emoji: "🎵", desc: "听一首喜欢的歌，心情会变好哦", animation: "music" }
+  ],
+  green: [
+    { id: "breathe", name: "深呼吸", emoji: "🌬️", desc: "慢慢吸气、呼气，像吹气球一样", animation: "breathe" },
+    { id: "count", name: "数数", emoji: "🔢", desc: "从1数到10，一个一个慢慢数", animation: "count" },
+    { id: "mindful", name: "正念观察", emoji: "👀", desc: "找一找周围5样东西，说说它们是什么颜色", animation: "mindful" }
+  ],
+  yellow: [
+    { id: "balloon", name: "吹气球呼吸", emoji: "🎈", desc: "想象在吹一个大大的气球，慢慢吹~", animation: "balloon" },
+    { id: "count10", name: "数到10", emoji: "🔟", desc: "在心里慢慢数到10，让自己冷静下来", animation: "count10" },
+    { id: "quiet", name: "找安静角落", emoji: "🏠", desc: "找一个安静的地方，待一会儿", animation: "quiet" }
+  ],
+  red: [
+    { id: "water", name: "喝水", emoji: "💧", desc: "喝一口凉凉的水，让身体舒服一点", animation: "water" },
+    { id: "hug", name: "抱玩偶", emoji: "🧸", desc: "抱抱你的小玩偶，感觉暖和多了", animation: "hug" },
+    { id: "butterfly", name: "蝴蝶拥抱", emoji: "🦋", desc: "双手交叉抱肩膀，轻轻拍一拍，像蝴蝶翅膀", animation: "butterfly" }
+  ]
+};
+
 // ======================== API Helpers ========================
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -290,6 +314,10 @@ const app = createApp({
     const emotionGameIndex = ref(0);
     const emotionGameAnswers = ref([]);
     const emotionGameScore = ref(0);
+    // 情绪调节策略
+    const strategyRecords = ref([]);
+    const strategyAnimating = ref(null);
+    const strategyUsed = ref([]);
     // 表单
     const authError = ref("");
     const loginUsername = ref("");
@@ -773,12 +801,15 @@ const app = createApp({
     }
 
     function openEmotionCheckin() {
-      if (todayEmotionCheckin()) {
-        emotionCheckinDone.value = true;
-        return;
-      }
       showEmotionCheckin.value = true;
-      selectedZone.value = null;
+      strategyUsed.value = [];
+      strategyAnimating.value = null;
+      const today = todayEmotionCheckin();
+      if (today) {
+        selectedZone.value = today.zone;
+      } else {
+        selectedZone.value = null;
+      }
     }
 
     // ---- 情绪识别游戏 ----
@@ -791,6 +822,47 @@ const app = createApp({
       if (!EMOTION_GAME_QUESTIONS.length) return 0;
       return Math.round(emotionGameIndex.value / EMOTION_GAME_QUESTIONS.length * 100);
     });
+
+    // ---- 情绪调节策略 ----
+    const currentStrategies = computed(() => {
+      if (!selectedZone.value) return [];
+      return EMOTION_STRATEGIES[selectedZone.value] || [];
+    });
+
+    const strategyStats = computed(() => {
+      const records = strategyRecords.value;
+      const total = records.length;
+      const byZone = {};
+      const byStrategy = {};
+      for (const r of records) {
+        byZone[r.zone] = (byZone[r.zone] || 0) + 1;
+        byStrategy[r.strategy] = (byStrategy[r.strategy] || 0) + 1;
+      }
+      return { total, byZone, byStrategy };
+    });
+
+    function getStrategyById(zone, id) {
+      const strategies = EMOTION_STRATEGIES[zone] || [];
+      return strategies.find(s => s.id === id) || null;
+    }
+
+    async function tryStrategy(strategy) {
+      if (strategyAnimating.value) return;
+      strategyAnimating.value = strategy.id;
+      playFeedbackSound('correct');
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      strategyUsed.value.push(strategy.id);
+      strategyAnimating.value = null;
+      try {
+        const result = await api('/api/emotion/strategy', {
+          method: 'POST',
+          body: JSON.stringify({ zone: selectedZone.value, strategy: strategy.id })
+        });
+        strategyRecords.value.push(result);
+      } catch (err) {
+        console.error(err);
+      }
+    }
 
     function startEmotionGame() {
       emotionGameView.value = "playing";
@@ -918,6 +990,7 @@ const app = createApp({
           schedule.value = saved.schedule || {};
           emotionCheckins.value = saved.emotionCheckins || [];
           emotionGames.value = saved.emotionGames || [];
+          strategyRecords.value = saved.strategyRecords || [];
           view.value = "home";
           selectedAge.value = saved.profile?.age || 4;
           scheduleReminder();
@@ -941,11 +1014,13 @@ const app = createApp({
       // emotion state
       emotionCheckins, showEmotionCheckin, selectedZone, emotionCheckinDone,
       emotionGames, emotionGameView, emotionGameIndex, emotionGameAnswers, emotionGameScore,
+      strategyRecords, strategyAnimating, strategyUsed,
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
       navItems, achievements, wrongAnswers,
       currentEmotionQuestion, emotionGameProgress,
+      currentStrategies, strategyStats, getStrategyById,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
@@ -959,13 +1034,14 @@ const app = createApp({
       achievements, scheduleReminder,
       // emotion methods
       openEmotionCheckin, doEmotionCheckin, closeEmotionCheckin, todayEmotionCheckin,
+      tryStrategy,
       startEmotionGame, answerEmotionGame, finishEmotionGame, exitEmotionGame,
       emotionGameAnswerClass, emotionGameAccuracy, emotionGameTotalGames,
       // constants
       SUBJECT_META, SUCCESS_SOUNDS, WEEKDAY_NAMES, localDate, makeSubjectLesson,
       completedTodaySubject, todayDraftSubject, streak, getTodaySubjects,
       celebrateWithParticles, playFeedbackSound,
-      EMOTION_ZONES, EMOTION_GAME_QUESTIONS
+      EMOTION_ZONES, EMOTION_GAME_QUESTIONS, EMOTION_STRATEGIES
     };
   }
 });

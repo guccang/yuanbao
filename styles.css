@@ -1331,6 +1331,231 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-weight: 700;
 }
 
+/* ======================== 情绪调节策略卡片 ======================== */
+.strategy-section-title {
+  margin: 20px 0 4px;
+  font-size: 18px;
+  text-align: left;
+}
+.strategy-section-hint {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+}
+.strategy-card-grid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.strategy-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  background: white;
+  cursor: pointer;
+  transition: transform .15s, border-color .2s, box-shadow .2s, background .2s;
+  text-align: left;
+}
+.strategy-card:hover {
+  transform: translateY(-2px);
+  border-color: #d5cdc8;
+  box-shadow: 0 5px 14px rgba(101, 83, 96, .08);
+}
+.strategy-card:active {
+  transform: translateY(0);
+}
+.strategy-card-emoji {
+  flex-shrink: 0;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--green-soft);
+  font-size: 28px;
+  transition: transform .3s, background .3s;
+}
+.strategy-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.strategy-card-name {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+.strategy-card-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.strategy-card-status {
+  flex-shrink: 0;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 900;
+}
+.strategy-try-mark {
+  color: var(--muted);
+  font-size: 20px;
+  transition: transform .2s;
+}
+.strategy-done-mark {
+  color: white;
+  background: var(--green);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 14px;
+  animation: strategy-done-pop .4s cubic-bezier(.18, .9, .25, 1.4);
+}
+.strategy-animating-mark {
+  color: var(--green);
+  animation: strategy-dots 1s ease-in-out infinite;
+}
+/* 动画中状态 */
+.strategy-card.strategy-animating {
+  border-color: var(--green);
+  background: var(--green-soft);
+  pointer-events: none;
+}
+.strategy-card.strategy-animating .strategy-card-emoji {
+  background: white;
+  animation: strategy-emoji-bounce .6s ease-in-out 3;
+}
+.strategy-card.strategy-animating .strategy-card-emoji-inner {
+  display: inline-block;
+  animation: strategy-emoji-spin .6s ease-in-out 3;
+}
+/* 已完成状态 */
+.strategy-card.strategy-done {
+  border-color: var(--green);
+  background: var(--green-soft);
+  opacity: .85;
+  cursor: default;
+}
+.strategy-card.strategy-done .strategy-card-emoji {
+  background: white;
+  border: 2px solid var(--green);
+}
+.strategy-card.strategy-done .strategy-card-desc {
+  color: var(--green-dark);
+}
+
+@keyframes strategy-emoji-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-8px) scale(1.12); }
+  60% { transform: translateY(-3px) scale(1.06); }
+}
+@keyframes strategy-emoji-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-10deg) scale(1.1); }
+  75% { transform: rotate(10deg) scale(1.1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+@keyframes strategy-done-pop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+@keyframes strategy-dots {
+  0%, 100% { opacity: .3; }
+  50% { opacity: 1; }
+}
+
+/* ======================== 策略使用统计（成长页面） ======================== */
+.strategy-stats {
+  padding: 20px;
+  border: 2px solid white;
+  border-radius: 26px;
+  background: rgba(255,255,255,.86);
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 10px;
+}
+.strategy-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.strategy-stat-card {
+  padding: 16px 8px;
+  border: 2px solid white;
+  border-radius: 18px;
+  background: rgba(255,255,255,.88);
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+}
+.strategy-stat-card:nth-child(1) { background: var(--green-soft); }
+.strategy-stat-card:nth-child(2) { background: #f0edff; }
+.strategy-stat-card:nth-child(3) { background: var(--orange-soft); }
+.strategy-stat-card i {
+  font-style: normal;
+  font-size: 22px;
+}
+.strategy-stat-card b {
+  display: block;
+  margin: 6px 0 2px;
+  font-size: 22px;
+}
+.strategy-stat-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.strategy-zone-breakdown {
+  display: grid;
+  gap: 10px;
+}
+.strategy-zone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.strategy-zone-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid color-mix(in srgb, var(--zone-color, var(--muted)) 30%, transparent);
+  background: color-mix(in srgb, var(--zone-color, var(--muted)) 10%, white);
+}
+.strategy-zone-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 99px;
+  background: #edf0ec;
+  overflow: hidden;
+}
+.strategy-zone-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width .6s cubic-bezier(.22, .9, .35, 1);
+}
+.strategy-zone-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  min-width: 36px;
+  text-align: right;
+}
+
 /* ======================== 深色模式适配 ======================== */
 @media (prefers-color-scheme: dark) {
   .emotion-checkin-bar {
@@ -1366,6 +1591,43 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   }
   .emotion-game-result-item.wrong {
     background: #3a2822;
+  }
+  .strategy-card {
+    background: #2a2826;
+    border-color: #44413e;
+  }
+  .strategy-card.strategy-animating {
+    background: #1e3a2e;
+    border-color: #3da87a;
+  }
+  .strategy-card.strategy-done {
+    background: #1e3a2e;
+    border-color: #3da87a;
+  }
+  .strategy-card .strategy-card-emoji {
+    background: #3a3836;
+  }
+  .strategy-card.strategy-animating .strategy-card-emoji {
+    background: #242220;
+  }
+  .strategy-card.strategy-done .strategy-card-emoji {
+    background: #242220;
+    border-color: #3da87a;
+  }
+  .strategy-stats {
+    background: rgba(255,255,255,.06);
+  }
+  .strategy-stat-card {
+    background: rgba(255,255,255,.06);
+  }
+  .strategy-stat-card:nth-child(1) { background: #1e3a2e; }
+  .strategy-stat-card:nth-child(2) { background: #2a223e; }
+  .strategy-stat-card:nth-child(3) { background: #3a2822; }
+  .strategy-zone-bar {
+    background: #3a3836;
+  }
+  .strategy-zone-bar i {
+    background: #3da87a;
   }
 }
 @media (prefers-color-scheme: dark) {
