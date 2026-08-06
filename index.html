@@ -8,6 +8,9 @@
   <title>元宝成长乐园</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="元宝乐园">
   <script src="https://unpkg.com/vue@3.4/dist/vue.global.prod.js"></script>
 </head>
 <body>
@@ -253,6 +256,14 @@
           </template>
           <div v-else class="empty">完成课程后，成长记录会出现在这里 🌱</div>
         </section>
+        <div class="section-heading" v-if="wrongAnswers.length"><h2>📝 错题本</h2><span>收集了 {{ wrongAnswers.length }} 道错题</span></div>
+        <section class="history-list" v-if="wrongAnswers.length">
+          <article v-for="(w, i) in wrongAnswers" :key="i" class="history-item">
+            <div class="history-icon" :style="{ background: '#ffeded', color: '#a33835' }">💪</div>
+            <div class="history-copy"><strong>{{ SUBJECT_META[w.subject]?.label || w.subject }}</strong><small>正确答案：{{ w.answer }} · 你选了：{{ w.chosen }}</small></div>
+            <div style="color:#a33835;font-size:12px">{{ w.date }}</div>
+          </article>
+        </section>
       </template>
 
       <!-- ==================== 我的 ==================== -->
@@ -280,6 +291,7 @@
           <div v-else class="empty" style="margin-bottom:10px">完成课程后，成就徽章会出现在这里 🌟</div>
           <button class="secondary-btn" @click="openEditProfile">✏️ 修改宝宝资料</button>
           <button class="secondary-btn" @click="exportData">📥 导出学习报告 (HTML)</button>
+          <button class="secondary-btn" @click="exportWorksheets">📝 导出练习册 (打印)</button>
           <button class="secondary-btn" @click="logout">🚪 退出登录</button>
           <button class="danger-btn" @click="resetData">清除全部学习数据</button>
         </section>

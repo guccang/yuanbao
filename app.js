@@ -318,6 +318,24 @@ const app = createApp({
       return list;
     });
 
+    // ---- 错题本 ----
+    const wrongAnswers = computed(() => {
+      const wrong = [];
+      const seen = new Set();
+      for (const rec of records.value) {
+        if (!rec.answers) continue;
+        for (let i = 0; i < rec.answers.length; i++) {
+          const a = rec.answers[i];
+          if (!a || a.correct) continue;
+          const key = rec.subject + ":" + (a.answer || "");
+          if (seen.has(key)) continue;
+          seen.add(key);
+          wrong.push({ subject: rec.subject, date: rec.date, index: i, answer: a.answer, chosen: a.chosen, day: rec.day || 1 });
+        }
+      }
+      return wrong.slice(0, 20);
+    });
+
     // ---- Navigation ----
     function navigate(to) {
       view.value = to;
@@ -554,6 +572,25 @@ const app = createApp({
       }
     }
 
+    async function exportWorksheets() {
+      try {
+        const resp = await fetch("/api/export/worksheets");
+        if (!resp.ok) throw new Error("导出失败");
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "yuanbao-worksheets-" + (profile.value?.name || "宝宝") + ".html";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("练习册已下载");
+      } catch (err) {
+        showToast(err.message);
+      }
+    }
+
     // ---- Schedule ----
     function openEditDialog(dow) {
       editDialog.show = true;
@@ -729,6 +766,10 @@ const app = createApp({
 
     // ---- Init ----
     onMounted(async () => {
+      // 注册 Service Worker（PWA 离线支持）
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+      }
       try {
         const saved = await api("/api/state");
         if (saved.profile) {
@@ -758,12 +799,12 @@ const app = createApp({
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
-      navItems, achievements,
+      navItems, achievements, wrongAnswers,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
       handleLogin, handleRegister, loadUserState, logout,
-      resetData, exportData,
+      resetData, exportData, exportWorksheets,
       openEditDialog, closeEditDialog, toggleEditSubject, saveEditDialog, resetSchedule,
       weekDays, subjectStats, historyItems, speak,
       answerClass, picAnswerClass, picAnswerValue, picAnswerLabel,

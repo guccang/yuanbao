@@ -317,6 +317,97 @@ function generateExportHtml(account) {
 </html>`;
 }
 
+// ---- 生成可打印练习册 ----
+function generateWorksheetsHtml(account) {
+  const profile = account.profile || {};
+  const age = profile.age || 4;
+  const maxNum = age === 3 ? 5 : age === 4 ? 8 : age === 5 ? 12 : 20;
+
+  // 生成数学计算题
+  const mathProblems = Array.from({ length: 10 }, (_, i) => {
+    const a = 1 + (i * 3 + 1) % Math.min(5, maxNum);
+    const b = 1 + (i * 2 + 3) % Math.min(4, maxNum);
+    const op = i % 2 === 0 ? "+" : "-";
+    const answer = op === "+" ? a + b : Math.max(0, a - b);
+    return { a, b, op, answer, text: `${a} ${op} ${b} = ____` };
+  });
+
+  // 生成英语单词描红
+  const words = [
+    { en: "apple", cn: "苹果", emoji: "🍎" },
+    { en: "cat", cn: "小猫", emoji: "🐱" },
+    { en: "dog", cn: "小狗", emoji: "🐶" },
+    { en: "sun", cn: "太阳", emoji: "☀️" },
+    { en: "red", cn: "红色", emoji: "🔴" },
+    { en: "car", cn: "汽车", emoji: "🚗" },
+    { en: "fish", cn: "小鱼", emoji: "🐟" },
+    { en: "star", cn: "星星", emoji: "⭐" }
+  ];
+
+  // 物理分类题
+  const physicsCategories = [
+    { question: "圈出会浮在水面上的东西", items: ["🪵 木块 ✓", "🪨 石头", "🍎 苹果 ✓", "🔑 钥匙", "🎈 气球 ✓", "🪙 硬币"] },
+    { question: "圈出磁铁能吸住的东西", items: ["🔩 铁钉 ✓", "🪵 木块", "📎 回形针 ✓", "🧴 塑料瓶", "🔑 铁钥匙 ✓", "📄 白纸"] },
+    { question: "圈出速度快的东西", items: ["🐆 猎豹 ✓", "🐢 乌龟", "🚀 火箭 ✓", "🐌 蜗牛", "✈️ 飞机 ✓", "🐛 毛毛虫"] }
+  ];
+
+  const problemRows = mathProblems.map(p =>
+    `<tr><td style="padding:14px 8px;border-bottom:1px solid #e8e0d4;font-size:22px;font-weight:800;text-align:center">${p.text}</td></tr>`
+  ).join("");
+
+  const wordRows = words.map(w =>
+    `<tr><td style="padding:10px 0;border-bottom:1px dashed #e8e0d4"><span style="font-size:28px">${w.emoji}</span> <span style="font-size:20px;font-weight:800">${w.en}</span> <span style="color:#807987">${w.cn}</span><div style="margin-top:6px;font-size:28px;letter-spacing:6px;color:#d5d0d0;font-family:monospace">${w.en.replace(/./g, "_ ")}</div></td></tr>`
+  ).join("");
+
+  const physicsHtml = physicsCategories.map(cat =>
+    `<div style="margin-bottom:24px"><h3 style="margin:0 0 10px;font-size:18px">${cat.question}</h3><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${cat.items.map(item => `<div style="padding:16px;border:2px solid #e8e0d4;border-radius:16px;text-align:center;font-size:18px;font-weight:800">${item}</div>`).join("")}</div></div>`
+  ).join("");
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${profile.name || "宝宝"}的练习册 — 元宝成长乐园</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #fff9f3; color: #403b46; padding: 24px; max-width: 800px; margin: auto; }
+  header { text-align: center; padding: 24px 0; border-bottom: 3px solid #f0e8d8; margin-bottom: 28px; }
+  header h1 { font-size: 28px; margin-bottom: 4px; }
+  header p { color: #807987; font-size: 14px; }
+  h2 { font-size: 22px; margin: 28px 0 14px; padding-bottom: 6px; border-bottom: 2px solid #f0e8d8; }
+  table { width: 100%; border-collapse: collapse; }
+  .page-break { page-break-after: always; border-bottom: 2px dashed #e0d8d0; margin: 32px 0; padding-bottom: 16px; text-align: center; color: #bbb; font-size: 12px; }
+  @media print { body { background: white; } .page-break { border: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌱 ${profile.name || "宝宝"}的练习册</h1>
+  <p>${age} 岁 · ${new Date().toLocaleDateString("zh-CN")}</p>
+</header>
+
+<h2>🔢 数学计算</h2>
+<p style="color:#807987;margin-bottom:16px">数一数，算一算，把答案填在横线上</p>
+<table>${problemRows}</table>
+
+<div class="page-break">—— 下一页 ——</div>
+
+<h2>🔤 英语描红</h2>
+<p style="color:#807987;margin-bottom:16px">读一读，跟着描一描</p>
+<table>${wordRows}</table>
+
+<div class="page-break">—— 下一页 ——</div>
+
+<h2>⚡ 物理分类</h2>
+<p style="color:#807987;margin-bottom:16px">读题后，圈出正确的答案</p>
+${physicsHtml}
+
+<footer style="text-align:center;margin-top:36px;padding:20px 0;color:#bbb;font-size:12px">元宝成长乐园 · 每天进步一点点 🌱</footer>
+</body>
+</html>`;
+}
+
 // ---- API 路由 ----
 async function handleApi(request, response, requestPath) {
   // ---- CSRF 防护 ----
@@ -503,6 +594,17 @@ async function handleApi(request, response, requestPath) {
     response.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",
       "Content-Disposition": "attachment; filename=\"yuanbao-report.html\"",
+      "Cache-Control": "no-store"
+    });
+    return response.end(html);
+  }
+
+  // ---- 导出可打印练习册 ----
+  if (requestPath === "/api/export/worksheets" && request.method === "GET") {
+    const html = generateWorksheetsHtml(account);
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Disposition": "attachment; filename=\"yuanbao-worksheets.html\"",
       "Cache-Control": "no-store"
     });
     return response.end(html);

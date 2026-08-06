@@ -80,7 +80,25 @@ const WORDS = [
   { en: "hot",     cn: "热的",   emoji: "🥵",  group: "天气" },
   { en: "cold",    cn: "冷的",   emoji: "🥶",  group: "天气" },
   { en: "windy",   cn: "有风的", emoji: "💨",  group: "天气" },
-  { en: "sunny",   cn: "晴天的", emoji: "☀️",  group: "天气" }
+  { en: "sunny",   cn: "晴天的", emoji: "☀️",  group: "天气" },
+  // 新增 形状
+  { en: "circle",  cn: "圆形",   emoji: "⭕",  group: "形状" },
+  { en: "square",  cn: "正方形", emoji: "🟦",  group: "形状" },
+  { en: "triangle",cn: "三角形", emoji: "🔺",  group: "形状" },
+  { en: "star",    cn: "星星",   emoji: "⭐",  group: "形状" },
+  // 新增 动作
+  { en: "jump",    cn: "跳",     emoji: "🤸",  group: "动作" },
+  { en: "run",     cn: "跑",     emoji: "🏃",  group: "动作" },
+  { en: "swim",    cn: "游泳",   emoji: "🏊",  group: "动作" },
+  { en: "sleep",   cn: "睡觉",   emoji: "😴",  group: "动作" },
+  { en: "eat",     cn: "吃",     emoji: "🍽️",  group: "动作" },
+  { en: "drink",   cn: "喝",     emoji: "🥤",  group: "动作" },
+  // 新增 玩具
+  { en: "ball",    cn: "球",     emoji: "⚽",  group: "玩具" },
+  { en: "doll",    cn: "娃娃",   emoji: "🪆",  group: "玩具" },
+  { en: "block",   cn: "积木",   emoji: "🧱",  group: "玩具" },
+  { en: "book",    cn: "书",     emoji: "📖",  group: "玩具" },
+  { en: "puzzle",  cn: "拼图",   emoji: "🧩",  group: "玩具" }
 ];
 
 function seeded(seed) {
