@@ -269,6 +269,15 @@
           <div class="setting-row"><div><strong>每日学科</strong><br><span>按课表自动安排</span></div><b>最多 3 科</b></div>
           <div class="setting-row"><div><strong>课程难度</strong><br><span>依据年龄自动调整</span></div><b>{{ profile.age }} 岁阶段</b></div>
           <div class="setting-row"><div><strong>数据保存</strong><br><span>安全保存在应用服务</span></div><b>已开启</b></div>
+          <div class="section-heading"><h2>🏅 成就徽章</h2><span>{{ achievements.length }} 枚</span></div>
+          <div class="badge-grid" v-if="achievements.length">
+            <div v-for="a in achievements" :key="a.id" class="badge-item">
+              <span class="badge-emoji">{{ a.emoji }}</span>
+              <strong>{{ a.label }}</strong>
+              <small>{{ a.desc }}</small>
+            </div>
+          </div>
+          <div v-else class="empty" style="margin-bottom:10px">完成课程后，成就徽章会出现在这里 🌟</div>
           <button class="secondary-btn" @click="openEditProfile">✏️ 修改宝宝资料</button>
           <button class="secondary-btn" @click="exportData">📥 导出学习报告 (HTML)</button>
           <button class="secondary-btn" @click="logout">🚪 退出登录</button>

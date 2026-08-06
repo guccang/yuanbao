@@ -945,7 +945,82 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   box-shadow: none !important;
 }
 
-/* ======================== 滚动条美化 ======================== */
+/* ======================== 成就徽章网格 ======================== */
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.badge-item {
+  display: grid;
+  padding: 14px 8px;
+  place-items: center;
+  gap: 4px;
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255,255,255,.86);
+  text-align: center;
+  transition: transform .15s;
+}
+.badge-item:hover { transform: translateY(-2px); }
+.badge-emoji { font-size: 32px; }
+.badge-item strong { font-size: 13px; }
+.badge-item small { color: var(--muted); font-size: 11px; }
+
+/* ======================== 深色模式 ======================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e4e0;
+    --muted: #a09890;
+    --cream: #1a1817;
+    --paper: #242220;
+    --green: #3da87a;
+    --green-dark: #5cc99a;
+    --green-soft: #1e3a2e;
+    --orange: #e87a5e;
+    --orange-soft: #3a2822;
+    --yellow: #d4b050;
+    --blue: #5a8fd0;
+    --blue-soft: #1e2a3e;
+    --purple: #8a72c8;
+    --pink: #d88a9e;
+    --pink-soft: #3a222a;
+    --line: #33302e;
+    --shadow: 0 14px 36px rgba(0,0,0,.40);
+    --shadow-soft: 0 7px 18px rgba(0,0,0,.30);
+  }
+  body::before, body::after { opacity: .15; }
+  .form-card, .profile-card, .subject-progress, .schedule-row, .history-item, .badge-item {
+    background: rgba(255,255,255,.06);
+  }
+  .field input, .answer, .schedule-edit-btn, .schedule-dialog, .secondary-btn {
+    background: #2a2826;
+    border-color: #44413e;
+    color: var(--ink);
+  }
+  .nav { background: rgba(36,34,32,.92); border-color: rgba(255,255,255,.10); }
+  .nav button.active { background: rgba(61,168,122,.18); }
+  .toast { background: #e8e4e0; color: #1a1817; }
+  .subject-card, .schedule-dialog, .feedback-sheet { background: #242220; }
+  .feedback-sheet.feedback-correct { background: linear-gradient(135deg, #242220, #1e3a2e); }
+  .feedback-sheet.feedback-wrong { background: linear-gradient(135deg, #242220, #3a2822); }
+  .prompt-card { background: rgba(255,255,255,.04); }
+  .streak-card { background: linear-gradient(135deg, #2a2018, #242220 68%, #242220); }
+  .schedule-today { background: #1e3a2e; }
+  .schedule-list .schedule-today { border-color: #3da87a; }
+  .stat-card, .result { background: rgba(255,255,255,.06); }
+  .stat-card:nth-child(1) { background: rgba(90,143,208,.12); }
+  .stat-card:nth-child(2) { background: rgba(212,176,80,.10); }
+  .stat-card:nth-child(3) { background: rgba(232,122,94,.10); }
+  .result:nth-child(1) { background: rgba(232,122,94,.10); }
+  .result:nth-child(2) { background: rgba(212,176,80,.08); }
+  .result:nth-child(3) { background: rgba(216,138,158,.10); }
+  .avatar { background: linear-gradient(145deg, #1e3a2e, #1a3026); }
+  ::-webkit-scrollbar-thumb { background: #44413e; }
+  ::-webkit-scrollbar-thumb:hover { background: #555250; }
+  .schedule-dialog-overlay { background: rgba(0,0,0,.50); }
+}
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { border-radius: 99px; background: #d5d0d0; }

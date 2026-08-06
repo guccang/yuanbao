@@ -4,12 +4,14 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const zlib = require("zlib");
 
 const root = path.resolve(process.env.SOURCE_DIR || ".");
 const port = Number(process.env.PORT || 8887);
 const dataFile = path.resolve(process.env.DATA_FILE || path.join(root, "data", "yuanbao.json"));
 const MAX_BODY_SIZE = 1024 * 1024;
 const SESSION_MAX_AGE_MS = 7 * 24 * 3600 * 1000; // 7 天
+const SESSION_RENEW_AFTER_MS = 3 * 24 * 3600 * 1000; // 3 天续签
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -116,8 +118,21 @@ function persistState() {
   return saveQueue;
 }
 
+// ---- CSRF 防护 ----
+function csrfCheck(request) {
+  if (request.method === "GET" || request.method === "HEAD") return true;
+  const origin = request.headers.origin;
+  const referer = request.headers.referer;
+  if (!origin && !referer) return true; // 允许无来源的 API 调用（如 curl）
+  const host = request.headers.host || "";
+  const check = (url) => {
+    try { return new URL(url).host === host; } catch { return false; }
+  };
+  return (origin && check(origin)) || (referer && check(referer));
+}
+
 // ---- 会话管理 ----
-function getAccountId(request) {
+function getAccountId(request, response) {
   const cookie = request.headers.cookie || "";
   const match = cookie.match(/(?:^|;\s*)yuanbao_session=([^;]*)/);
   if (!match) return null;
@@ -127,6 +142,11 @@ function getAccountId(request) {
   if (Date.now() - session.createdAt > SESSION_MAX_AGE_MS) {
     delete persistedState.sessions[token];
     return null;
+  }
+  // 滑动过期：超过 3 天自动续签
+  if (response && Date.now() - session.createdAt > SESSION_RENEW_AFTER_MS) {
+    session.createdAt = Date.now();
+    response.setHeader("Set-Cookie", `yuanbao_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_MS / 1000}`);
   }
   return session.accountId;
 }
@@ -153,6 +173,34 @@ function sendJson(response, status, value) {
     "X-Content-Type-Options": "nosniff"
   });
   response.end(JSON.stringify(value));
+}
+
+// ---- 错误页面 ----
+function sendErrorPage(response, status, title, message) {
+  const html = `<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} — 元宝成长乐园</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #fff9f3; color: #403b46; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; text-align: center; }
+  .emoji { font-size: 72px; margin-bottom: 16px; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  p { color: #807987; margin-bottom: 24px; line-height: 1.6; }
+  a { display: inline-flex; align-items: center; gap: 6px; padding: 12px 24px; border-radius: 17px; background: #55b98b; color: white; font-weight: 800; text-decoration: none; box-shadow: 0 5px 0 #2a8064; }
+  a:hover { transform: translateY(-2px); }
+</style></head>
+<body>
+  <div class="emoji">${status === 404 ? "🔍" : "🛡️"}</div>
+  <h1>${title}</h1>
+  <p>${message}</p>
+  <a href="/">🏡 回到首页</a>
+</body></html>`;
+  response.writeHead(status, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  response.end(html);
 }
 
 function readJson(request) {
@@ -271,6 +319,11 @@ function generateExportHtml(account) {
 
 // ---- API 路由 ----
 async function handleApi(request, response, requestPath) {
+  // ---- CSRF 防护 ----
+  if (!csrfCheck(request)) {
+    return sendJson(response, 403, { error: "请求来源不被允许" });
+  }
+
   // ---- 认证 ----
   if (requestPath === "/api/auth/register" && request.method === "POST") {
     const retryAfter = rateLimit(request);
@@ -284,6 +337,10 @@ async function handleApi(request, response, requestPath) {
     }
     if (!password || typeof password !== "string" || password.length < 4) {
       return sendJson(response, 400, { error: "密码至少 4 个字符" });
+    }
+    // 密码强度：至少 8 个字符，包含字母和数字
+    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return sendJson(response, 400, { error: "密码至少 8 个字符，且包含字母和数字" });
     }
     if (!childName || typeof childName !== "string" || !childName.trim()) {
       return sendJson(response, 400, { error: "请输入宝宝的小名" });
@@ -351,7 +408,7 @@ async function handleApi(request, response, requestPath) {
   }
 
   // ---- 会话校验（后续 API 均需登录） ----
-  const accountId = getAccountId(request);
+  const accountId = getAccountId(request, response);
   if (!accountId || !persistedState.accounts[accountId]) {
     return sendJson(response, 401, { error: "请先登录" });
   }
@@ -486,22 +543,39 @@ const server = http.createServer(async (request, response) => {
   const filePath = path.resolve(root, relativePath);
 
   if (!filePath.startsWith(root + path.sep) && filePath !== root) {
-    response.writeHead(403);
-    return response.end("Forbidden");
+    return sendErrorPage(response, 403, "访问被拒绝", "你没有权限访问此资源。");
   }
 
   fs.stat(filePath, (statError, stats) => {
     if (statError || !stats.isFile()) {
-      response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-      return response.end("Not Found");
+      return sendErrorPage(response, 404, "页面不见了", "咦，这里什么都没有……是不是走错路啦？");
     }
 
-    response.writeHead(200, {
-      "Content-Type": types[path.extname(filePath)] || "application/octet-stream",
-      "Cache-Control": "no-cache",
+    const ext = path.extname(filePath);
+    const contentType = types[ext] || "application/octet-stream";
+
+    // 缓存策略：CSS/JS 模块文件启用强缓存
+    const isModule = ext === ".js" || ext === ".css";
+    const cacheControl = isModule ? "public, max-age=3600" : "no-cache";
+
+    // gzip 压缩：仅对大于 1KB 的文本类响应启用
+    const acceptsGzip = request.headers["accept-encoding"]?.includes("gzip");
+    const useGzip = acceptsGzip && stats.size > 1024 && (ext === ".html" || ext === ".css" || ext === ".js");
+
+    const headers = {
+      "Content-Type": contentType,
+      "Cache-Control": cacheControl,
       "X-Content-Type-Options": "nosniff"
-    });
-    fs.createReadStream(filePath).pipe(response);
+    };
+    if (useGzip) headers["Content-Encoding"] = "gzip";
+
+    response.writeHead(200, headers);
+
+    if (useGzip) {
+      fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(response);
+    } else {
+      fs.createReadStream(filePath).pipe(response);
+    }
   });
 });
 

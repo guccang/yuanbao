@@ -160,12 +160,32 @@ function playFeedbackSound(type = "correct", vehicle) {
     feedbackAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
     const context = feedbackAudioContext;
     const start = context.currentTime;
-    const celebration = type === "complete";
-    const notes = celebration ? [523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99];
-    const duration = celebration ? .26 : .16;
     feedbackMasterGain ||= context.createGain();
     feedbackMasterGain.gain.value = .72;
     feedbackMasterGain.connect(context.destination);
+    if (context.state === "suspended") context.resume().catch(() => {});
+
+    // 答错鼓励音效：柔和的上行琶音
+    if (type === "wrong") {
+      [261.63, 329.63, 392.00].forEach((freq, i) => {
+        const t = start + i * 0.12;
+        const osc = context.createOscillator();
+        const g = context.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(.0001, t);
+        g.gain.exponentialRampToValueAtTime(.06, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(.0001, t + 0.18);
+        osc.connect(g).connect(feedbackMasterGain);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      });
+      return;
+    }
+
+    const celebration = type === "complete";
+    const notes = celebration ? [523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99];
+    const duration = celebration ? .26 : .16;
     if (context.state === "suspended") context.resume().catch(() => {});
     if (vehicle) playVehicleSound(context, feedbackMasterGain, start + .34, vehicle);
     notes.forEach((frequency, index) => {
@@ -277,6 +297,27 @@ const app = createApp({
       { id: "profile", icon: "🐣", label: "我的" }
     ]);
 
+    // ---- 成就徽章 ----
+    const achievements = computed(() => {
+      const list = [];
+      const completed = records.value.filter(r => r.completed);
+      const totalLessons = completed.length;
+      const totalAnswers = completed.flatMap(r => r.answers || []);
+      const totalCorrect = totalAnswers.filter(a => a.correct).length;
+      const totalQuestions = totalAnswers.length;
+
+      if (totalLessons >= 1) list.push({ id: "first", emoji: "🌟", label: "初次学习", desc: "完成第一节课", earned: true });
+      if (totalLessons >= 10) list.push({ id: "ten", emoji: "📚", label: "小学霸", desc: "完成 10 节课", earned: true });
+      if (totalLessons >= 50) list.push({ id: "fifty", emoji: "🏆", label: "学习达人", desc: "完成 50 节课", earned: true });
+      if (streakCount.value >= 7) list.push({ id: "streak7", emoji: "🔥", label: "坚持一周", desc: "连续学习 7 天", earned: true });
+      if (streakCount.value >= 30) list.push({ id: "streak30", emoji: "⭐", label: "月度之星", desc: "连续学习 30 天", earned: true });
+      if (totalQuestions >= 10 && totalCorrect === totalQuestions) list.push({ id: "perfect", emoji: "💯", label: "完美起步", desc: "10 题全部答对", earned: true });
+      if (totalQuestions >= 100) list.push({ id: "century", emoji: "🎯", label: "百题斩", desc: "累计完成 100 题", earned: true });
+      if (totalQuestions >= 500) list.push({ id: "fivecentury", emoji: "👑", label: "答题王者", desc: "累计完成 500 题", earned: true });
+
+      return list;
+    });
+
     // ---- Navigation ----
     function navigate(to) {
       view.value = to;
@@ -352,6 +393,7 @@ const app = createApp({
         await nextTick();
         const prompt = document.querySelector(".prompt-card");
         prompt?.classList.add("prompt-try-again");
+        playFeedbackSound("wrong");
       }
 
       // 保存进度
@@ -638,6 +680,33 @@ const app = createApp({
       return answers.value.filter(a => a?.correct).length;
     }
 
+    // ---- 学习提醒 ----
+    let reminderTimer = null;
+    function scheduleReminder() {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "denied") return;
+      if (Notification.permission === "granted") {
+        // 下午 5 点后检查是否完成今日课程
+        const hour = new Date().getHours();
+        if (hour < 17) return;
+        const allDone = todaySubjects.value.every(s => completedTodaySubject(records.value, s));
+        if (!allDone && records.value.length > 0) {
+          new Notification("🌱 元宝成长乐园", {
+            body: "今天的课程还没有完成哦，和宝宝一起学一会儿吧！",
+            tag: "yuanbao-reminder",
+            silent: true
+          });
+        }
+        return;
+      }
+      // 请求权限（仅一次）
+      if (reminderTimer === null) {
+        reminderTimer = setTimeout(() => {
+          Notification.requestPermission().catch(() => {});
+        }, 30000);
+      }
+    }
+
     // ---- Edit profile ----
     function openEditProfile() {
       editName.value = profile.value?.name || "";
@@ -668,6 +737,7 @@ const app = createApp({
           schedule.value = saved.schedule || {};
           view.value = "home";
           selectedAge.value = saved.profile?.age || 4;
+          scheduleReminder();
           return;
         }
       } catch (err) {
@@ -688,7 +758,7 @@ const app = createApp({
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
-      navItems,
+      navItems, achievements,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
@@ -699,6 +769,7 @@ const app = createApp({
       answerClass, picAnswerClass, picAnswerValue, picAnswerLabel,
       remainingSubjects, correctCount,
       openEditProfile, saveEditProfile,
+      achievements, scheduleReminder,
       // constants
       SUBJECT_META, SUCCESS_SOUNDS, WEEKDAY_NAMES, localDate, makeSubjectLesson,
       completedTodaySubject, todayDraftSubject, streak, getTodaySubjects,
