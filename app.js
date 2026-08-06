@@ -156,7 +156,6 @@ function computeSubjectDays(records, startedAt) {
   if (!startedAt) return { math: 1, physics: 1, english: 1 };
   const start = dateFromKey(startedAt);
   const today = dateFromKey(localDate());
-  const totalDays = Math.max(1, Math.floor((today - start) / DAY_MS) + 1);
   const counts = {};
   for (const subj of ["math", "physics", "english"]) {
     const completed = records.filter(r => r.subject === subj && r.completed).length;
@@ -460,17 +459,6 @@ const app = createApp({
         cursor.setDate(monday.getDate() - 7);
       }
       return weeks;
-    }
-
-    function isDateInRange(dateStr, start, end) {
-      const d = new Date(dateStr);
-      const s = new Date(start);
-      const e = new Date(end);
-      // 将时间设到 00:00 比较
-      s.setHours(0, 0, 0, 0);
-      e.setHours(23, 59, 59, 999);
-      d.setHours(0, 0, 0, 0);
-      return d >= s && d <= e;
     }
 
     // ---- 周报计算 ----
@@ -1709,18 +1697,6 @@ const app = createApp({
       navigate("home");
     }
 
-    function emotionGameAnswerClass(opt) {
-      const q = currentEmotionQuestion.value;
-      if (!q) return {};
-      // 已答过题时显示正确/错误样式
-      const answered = emotionGameAnswers.value[emotionGameIndex.value];
-      if (!answered) return {};
-      return {
-        correct: opt === q.answer,
-        wrong: opt === answered.chosen && !answered.correct
-      };
-    }
-
     function emotionGameAccuracy() {
       const all = emotionGames.value.flatMap(g => g.answers || []);
       if (!all.length) return 0;
@@ -2009,7 +1985,7 @@ const app = createApp({
       tryStrategy,
       openStrategyDetail, closeStrategyDetail, doStrategyAction, findObject, completeStrategy,
       startEmotionGame, answerEmotionGame, finishEmotionGame, exitEmotionGame,
-      emotionGameAnswerClass, emotionGameAccuracy, emotionGameTotalGames,
+      emotionGameAccuracy, emotionGameTotalGames,
       // communication log methods
       getCurrentWeekId, getCurrentWeekCommunicationLog, getWeekLabel,
       resetCommunicationForm, loadCommunicationForm, saveCommunicationLog,
