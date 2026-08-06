@@ -765,6 +765,129 @@ const app = createApp({
       return { chartData: { points, maxDuration, unit: '秒' }, weeks, width, height };
     });
 
+    // ---- 自洽性验证状态 ----
+    // 基于方法论文档 §3.5 交叉验证规则：
+    //   存在改善信号 ⟺ (1) App 内指标 ≥ 半数方向为正
+    //                  (2) 家长报告指标 ≥ 半数方向为正
+    //                  (3) 改善幅度 ≥ 0.3 标准差（最小可感知变化）
+    //                  (4) 持续 ≥ 2 个评估周期（即 8 周）
+    //    初次评估：第 1–4 周仅采集数据，第 5 周起判定
+    const verificationStatus = computed(() => {
+      const BASELINE_WEEKS = 4;
+      const EVALUATION_WEEKS = 8;
+
+      function weeksBetween(firstDate, lastDate) {
+        if (!firstDate || !lastDate) return 0;
+        const diffMs = new Date(lastDate) - new Date(firstDate);
+        return Math.max(1, Math.round(diffMs / (7 * 86400000)) + 1);
+      }
+
+      function trendPositive(values) {
+        if (values.length < 2) return null;
+        const first = values[0], last = values[values.length - 1];
+        if (first === last) return null;
+        return last > first;
+      }
+
+      // 沟通维度：沟通日志（家长报告 = 应用内数据，满足条件 1 和 2）
+      const commLogs = [...(communicationLogs.value || [])].sort((a, b) => a.weekId.localeCompare(b.weekId));
+      const commWeeks = commLogs.length;
+      const commMetrics = commWeeks >= 2 ? [
+        { key: 'vocabulary', label: '词汇量', positive: trendPositive(commLogs.map(l => l.vocabulary)) },
+        { key: 'conversationTurns', label: '对话轮次', positive: trendPositive(commLogs.map(l => l.conversationTurns)) },
+        { key: 'narrativeScore', label: '叙事能力', positive: trendPositive(commLogs.map(l => l.narrativeScore)) },
+        { key: 'initiativeScore', label: '沟通主动性', positive: trendPositive(commLogs.map(l => l.initiativeScore)) }
+      ] : [];
+      const commValid = commMetrics.filter(m => m.positive !== null);
+      const commImproving = commValid.length > 0 && commValid.filter(m => m.positive).length >= commValid.length / 2;
+
+      // 专注维度：课程记录专注时长（应用内数据）
+      const focusCompleted = (records.value || []).filter(r => r.completed && typeof r.duration === 'number').sort((a, b) => a.date.localeCompare(b.date));
+      const focusDates = focusCompleted.length ? { first: focusCompleted[0].date, last: focusCompleted[focusCompleted.length - 1].date } : null;
+      const focusWeeks = focusDates ? weeksBetween(focusDates.first, focusDates.last) : 0;
+      const focusWeekMap = {};
+      for (const r of focusCompleted) {
+        const d = new Date(r.date);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const weekKey = d.getFullYear() + '-W' + String(Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7)).padStart(2, '0');
+        if (!focusWeekMap[weekKey]) focusWeekMap[weekKey] = [];
+        focusWeekMap[weekKey].push(r.duration);
+      }
+      const focusWeekKeys = Object.keys(focusWeekMap).sort();
+      const focusWeekAvgs = focusWeekKeys.map(k => Math.round(focusWeekMap[k].reduce((s, d) => s + d, 0) / focusWeekMap[k].length));
+      const focusImproving = focusWeekAvgs.length >= 2
+        ? focusWeekAvgs[focusWeekAvgs.length - 1] > focusWeekAvgs[0]
+        : null;
+
+      // 情绪维度：情绪自评 + 游戏数据（应用内数据）
+      const checkins = emotionCheckins.value || [];
+      const checkinDates = checkins.length ? { first: checkins[0].date, last: checkins[checkins.length - 1].date } : null;
+      const emotionWeeks = checkinDates ? weeksBetween(checkinDates.first, checkinDates.last) : 0;
+      const games = emotionGames.value || [];
+      const gameWeeks = games.length ? (() => {
+        const sorted = [...games].sort((a, b) => a.date.localeCompare(b.date));
+        return weeksBetween(sorted[0].date, sorted[sorted.length - 1].date);
+      })() : 0;
+      const emotionTotalWeeks = Math.max(emotionWeeks, gameWeeks);
+
+      // 游戏正确率趋势
+      const gameWeekMap = {};
+      for (const g of games) {
+        const d = new Date(g.date);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const weekKey = d.getFullYear() + '-W' + String(Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7)).padStart(2, '0');
+        if (!gameWeekMap[weekKey]) gameWeekMap[weekKey] = { correct: 0, total: 0 };
+        gameWeekMap[weekKey].correct += g.score || 0;
+        gameWeekMap[weekKey].total += g.total || 0;
+      }
+      const gameWeekKeys = Object.keys(gameWeekMap).sort();
+      const gameAccuracies = gameWeekKeys.map(k => gameWeekMap[k].total > 0 ? Math.round(gameWeekMap[k].correct / gameWeekMap[k].total * 100) : 0);
+      const emotionImproving = gameAccuracies.length >= 2
+        ? gameAccuracies[gameAccuracies.length - 1] > gameAccuracies[0]
+        : null;
+
+      function evalPhase(weeks) {
+        if (weeks === 0) return 'no_data';
+        if (weeks < BASELINE_WEEKS) return 'baseline';
+        if (weeks < EVALUATION_WEEKS) return 'collecting';
+        return 'evaluating';
+      }
+
+      return [
+        {
+          key: 'communication',
+          label: '沟通能力',
+          emoji: '🗣️',
+          weeks: commWeeks,
+          phase: evalPhase(commWeeks),
+          improving: commImproving,
+          metrics: commMetrics
+        },
+        {
+          key: 'focus',
+          label: '持续专注',
+          emoji: '⏱️',
+          weeks: focusWeeks,
+          phase: evalPhase(focusWeeks),
+          improving: focusImproving,
+          metrics: focusWeekAvgs.length >= 2
+            ? [{ key: 'avgDuration', label: '平均专注时长', positive: focusImproving }]
+            : []
+        },
+        {
+          key: 'emotion',
+          label: '情绪稳定',
+          emoji: '😊',
+          weeks: emotionTotalWeeks,
+          phase: evalPhase(emotionTotalWeeks),
+          improving: emotionImproving,
+          metrics: gameAccuracies.length >= 2
+            ? [{ key: 'gameAccuracy', label: '游戏正确率', positive: emotionImproving }]
+            : []
+        }
+      ];
+    });
+
     // ---- 成就徽章 ----
     const achievements = computed(() => {
       const list = [];
@@ -1869,7 +1992,7 @@ const app = createApp({
       // focus computed
       focusDisplay, focusStats,
       // trend computed
-      communicationTrends, subjectAccuracyTrends, focusTrends,
+      communicationTrends, subjectAccuracyTrends, focusTrends, verificationStatus,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,

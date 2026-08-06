@@ -520,6 +520,44 @@
             <p>暂无专注力数据 ⏱️</p>
             <p>完成课程时专注力计时器会自动记录数据，继续学习即可看到趋势。</p>
           </div>
+
+          <!-- 自洽性验证状态 -->
+          <div class="section-heading"><h2>✅ 自洽性验证状态</h2><span>基于方法论文档 §3.5 交叉验证规则</span></div>
+          <section class="verification-section">
+            <div class="chart-desc">根据方法论文档定义的验证矩阵，以下展示各维度的数据采集进度与改善信号判定。基线采集期（第 1–4 周）仅收集数据，第 5 周起开始判定是否存在可验证的改善。</div>
+            <div v-for="dim in verificationStatus" :key="dim.key" class="verification-card">
+              <div class="verification-header">
+                <span class="verification-dim">{{ dim.emoji }} {{ dim.label }}</span>
+                <span class="verification-phase" :class="'phase-' + dim.phase">
+                  {{ dim.phase === 'no_data' ? '暂无数据' : dim.phase === 'baseline' ? '基线采集中' : dim.phase === 'collecting' ? '评估采集中' : '可评估' }}
+                </span>
+              </div>
+              <div class="verification-stats">
+                <span class="verification-weeks">{{ dim.weeks }} 周数据</span>
+                <span v-if="dim.phase === 'baseline'" class="verification-hint">还需 {{ 4 - dim.weeks }} 周完成基线</span>
+                <span v-if="dim.phase === 'collecting'" class="verification-hint">还需 {{ 8 - dim.weeks }} 周进入评估</span>
+              </div>
+              <div v-if="dim.metrics.length" class="verification-metrics">
+                <div v-for="m in dim.metrics" :key="m.key" class="verification-metric">
+                  <span class="metric-label">{{ m.label }}</span>
+                  <span class="metric-trend" :class="m.positive === true ? 'trend-up' : m.positive === false ? 'trend-down' : 'trend-flat'">
+                    {{ m.positive === true ? '↑ 上升' : m.positive === false ? '↓ 下降' : '— 持平' }}
+                  </span>
+                </div>
+              </div>
+              <div v-if="dim.phase === 'evaluating'" class="verification-verdict">
+                <span :class="dim.improving ? 'verdict-pass' : 'verdict-fail'">
+                  {{ dim.improving ? '✅ 检测到改善信号' : '⏳ 尚未达到改善阈值' }}
+                </span>
+              </div>
+              <div v-else-if="dim.phase === 'no_data'" class="verification-verdict">
+                <span class="verdict-pending">继续使用应用采集数据</span>
+              </div>
+              <div v-else class="verification-verdict">
+                <span class="verdict-pending">数据采集中，{{ dim.phase === 'baseline' ? '基线建立后开始评估' : '充足数据后开始评估' }}</span>
+              </div>
+            </div>
+          </section>
         </template>
 
         <!-- ============ 情绪周报 Tab ============ -->
