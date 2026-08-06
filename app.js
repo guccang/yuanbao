@@ -318,6 +318,8 @@ const app = createApp({
     const strategyRecords = ref([]);
     const strategyAnimating = ref(null);
     const strategyUsed = ref([]);
+    // 成长页面 Tab 切换
+    const progressTab = ref("overview"); // overview | weekly
     // 表单
     const authError = ref("");
     const loginUsername = ref("");
@@ -354,6 +356,228 @@ const app = createApp({
       { id: "progress", icon: "🌈", label: "成长" },
       { id: "profile", icon: "🐣", label: "我的" }
     ]);
+
+    // ---- 周报工具函数 ----
+    function getWeekRange(date) {
+      // 返回 date 所在周的周一和周日
+      const d = new Date(date);
+      const day = d.getDay(); // 0=周日
+      const diff = (day === 0 ? 6 : day - 1); // 到周一的天数差
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - diff);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { monday, sunday };
+    }
+
+    function formatWeekLabel(monday, sunday) {
+      const m = (monday.getMonth() + 1) + '/' + monday.getDate();
+      const s = (sunday.getMonth() + 1) + '/' + sunday.getDate();
+      return m + '-' + s;
+    }
+
+    function getPastWeeks(count) {
+      const today = new Date();
+      const weeks = [];
+      // 从今天所在的周开始，往前推 count 周
+      let cursor = new Date(today);
+      for (let i = 0; i < count; i++) {
+        const { monday, sunday } = getWeekRange(cursor);
+        weeks.push({
+          monday: new Date(monday),
+          sunday: new Date(sunday),
+          label: formatWeekLabel(monday, sunday)
+        });
+        // 上周一
+        cursor.setDate(monday.getDate() - 7);
+      }
+      return weeks;
+    }
+
+    function isDateInRange(dateStr, start, end) {
+      const d = new Date(dateStr);
+      const s = new Date(start);
+      const e = new Date(end);
+      // 将时间设到 00:00 比较
+      s.setHours(0, 0, 0, 0);
+      e.setHours(23, 59, 59, 999);
+      d.setHours(0, 0, 0, 0);
+      return d >= s && d <= e;
+    }
+
+    // ---- 周报计算 ----
+    const weeklyReport = computed(() => {
+      const weeks = getPastWeeks(4);
+      const checkins = emotionCheckins.value || [];
+      const games = emotionGames.value || [];
+      const strategies = strategyRecords.value || [];
+
+      let totalCheckinDays = 0;
+      let totalGames = 0;
+      let totalStrategyUsage = 0;
+      let hasGameData = false;
+
+      const weekData = weeks.map(week => {
+        const { monday, sunday, label } = week;
+        const mondayStr = localDate(monday);
+        const sundayStr = localDate(sunday);
+
+        // 该周的自评
+        const weekCheckins = checkins.filter(c =>
+          c.date >= mondayStr && c.date <= sundayStr
+        );
+        const zoneDays = {};
+        for (const c of weekCheckins) {
+          zoneDays[c.zone] = (zoneDays[c.zone] || 0) + 1;
+        }
+        const hasCheckin = weekCheckins.length > 0;
+        if (hasCheckin) totalCheckinDays += weekCheckins.length;
+
+        // 该周的游戏
+        const weekGames = games.filter(g =>
+          g.date >= mondayStr && g.date <= sundayStr
+        );
+        const gameAccuracy = weekGames.length
+          ? Math.round(weekGames.reduce((s, g) => s + g.score, 0) / weekGames.reduce((s, g) => s + g.total, 0) * 100)
+          : 0;
+        const gameTotal = weekGames.reduce((s, g) => s + g.total, 0);
+        const gameCorrect = weekGames.reduce((s, g) => s + g.score, 0);
+        if (weekGames.length) {
+          hasGameData = true;
+          totalGames += weekGames.length;
+        }
+
+        // 该周的策略
+        const weekStrategies = strategies.filter(s =>
+          s.date >= mondayStr && s.date <= sundayStr
+        );
+        totalStrategyUsage += weekStrategies.length;
+
+        const totalDays = 7;
+
+        return {
+          label,
+          monday: mondayStr,
+          sunday: sundayStr,
+          totalDays,
+          hasCheckin,
+          zoneDays,
+          checkinCount: weekCheckins.length,
+          gameCount: weekGames.length,
+          gameAccuracy,
+          gameCorrect,
+          gameTotal,
+          strategyCount: weekStrategies.length
+        };
+      });
+
+      // 策略排行
+      const strategyCounts = {};
+      for (const s of strategies) {
+        const inRange = weeks.some(w => s.date >= w.monday && s.date <= w.sunday);
+        if (inRange) {
+          if (!strategyCounts[s.strategy]) {
+            const meta = getStrategyById(s.zone, s.strategy);
+            strategyCounts[s.strategy] = { id: s.strategy, zone: s.zone, count: 0, name: meta?.name || s.strategy, emoji: meta?.emoji || '🧘' };
+          }
+          strategyCounts[s.strategy].count++;
+        }
+      }
+      const strategyRanking = Object.values(strategyCounts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      return {
+        weeks: weekData,
+        hasGameData,
+        totalCheckinDays,
+        totalGames,
+        totalStrategyUsage,
+        strategyRanking
+      };
+    });
+
+    const weeklyReportTitle = computed(() => {
+      const weeks = weeklyReport.value.weeks;
+      if (!weeks.length) return '情绪发展周报';
+      return weeks[0].label + ' 周报';
+    });
+
+    const weeklyReportSummary = computed(() => {
+      const r = weeklyReport.value;
+      if (!r.weeks.length || !r.totalCheckinDays) return '暂无足够数据生成评估小结。';
+
+      const parts = [];
+      // 情绪稳定性
+      const allCheckins = emotionCheckins.value || [];
+      const greenCount = allCheckins.filter(c => c.zone === 'green').length;
+      const totalWithZone = allCheckins.filter(c => ['blue','green','yellow','red'].includes(c.zone)).length;
+      const greenRatio = totalWithZone ? Math.round(greenCount / totalWithZone * 100) : 0;
+      if (greenRatio >= 60) {
+        parts.push('宝宝情绪状态总体稳定，绿区占比 ' + greenRatio + '%，处于积极健康的情绪状态。');
+      } else if (greenRatio >= 40) {
+        parts.push('宝宝情绪状态基本良好，绿区占比 ' + greenRatio + '%，建议在日常学习中多关注情绪波动。');
+      } else {
+        parts.push('宝宝近期情绪波动较多，绿区占比 ' + greenRatio + '%，建议增加情绪调节策略的引导和练习。');
+      }
+
+      // 游戏认知
+      if (r.hasGameData) {
+        const allGames = emotionGames.value || [];
+        const totalCorrect = allGames.reduce((s, g) => s + g.score, 0);
+        const totalQ = allGames.reduce((s, g) => s + g.total, 0);
+        const overallAcc = totalQ ? Math.round(totalCorrect / totalQ * 100) : 0;
+        if (overallAcc >= 80) {
+          parts.push('情绪识别能力较强，整体正确率 ' + overallAcc + '%，宝宝能准确识别常见情绪表达。');
+        } else if (overallAcc >= 60) {
+          parts.push('情绪识别能力在发展中，整体正确率 ' + overallAcc + '%，可以通过更多游戏练习提升。');
+        } else {
+          parts.push('情绪识别仍需多加练习，整体正确率 ' + overallAcc + '%，建议家长在日常互动中多引导宝宝识别情绪。');
+        }
+      }
+
+      // 策略使用
+      if (r.totalStrategyUsage > 0) {
+        if (r.strategyRanking.length) {
+          const top = r.strategyRanking[0];
+          parts.push('最常用的调节策略是「' + top.name + '」，共使用 ' + top.count + ' 次，说明宝宝对这种调节方式接受度较高。');
+        }
+        parts.push('累计尝试了 ' + r.totalStrategyUsage + ' 次情绪调节，持续练习有助于提升情绪管理能力。');
+      } else {
+        parts.push('还没有使用过情绪调节策略，建议在情绪自评后尝试推荐的调节方法。');
+      }
+
+      return parts.join(' ');
+    });
+
+    const weeklyGameChart = computed(() => {
+      const r = weeklyReport.value;
+      const width = 320;
+      const height = 180;
+      const padding = { top: 20, right: 10, bottom: 30, left: 40 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+
+      const visibleWeeks = r.weeks.filter(w => w.gameCount > 0 || r.weeks.indexOf(w) === 0);
+
+      if (!visibleWeeks.length) return { points: [], width, height };
+
+      // 如果没有数据，用占位点
+      const points = visibleWeeks.map((week, i) => {
+        const x = padding.left + (i / Math.max(visibleWeeks.length - 1, 1)) * chartW;
+        const y = week.gameCount > 0
+          ? padding.top + chartH - (week.gameAccuracy / 100 * chartH)
+          : padding.top + chartH; // 底部
+        return {
+          x,
+          y,
+          label: week.gameCount > 0 ? week.gameAccuracy + '%' : '—',
+          weekLabel: week.label
+        };
+      });
+
+      return { points, width, height };
+    });
 
     // ---- 成就徽章 ----
     const achievements = computed(() => {

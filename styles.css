@@ -1860,3 +1860,278 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ======================== 成长页面 Tab 切换 ======================== */
+.progress-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 4px;
+  border-radius: 20px;
+  background: rgba(0,0,0,.04);
+}
+.progress-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 17px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.progress-tab.active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* ======================== 情绪周报 - 图表说明 ======================== */
+.chart-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: rgba(117, 167, 237, .06);
+  border-radius: 14px;
+  border-left: 3px solid var(--blue);
+}
+
+/* ======================== 情绪周报 - 堆叠柱状图 ======================== */
+.weekly-zone-chart {
+  margin: 0 0 28px;
+}
+.weekly-stacked-bar-chart {
+  display: grid;
+  gap: 10px;
+}
+.weekly-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.weekly-bar-label {
+  width: 68px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+  text-align: right;
+}
+.weekly-bar-track {
+  flex: 1;
+  height: 32px;
+  border-radius: 10px;
+  background: #f0ece8;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+.weekly-bar-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  transition: width .4s ease;
+  min-width: 4px;
+}
+.weekly-bar-segment:first-child {
+  border-radius: 10px 0 0 10px;
+}
+.weekly-bar-segment:last-child {
+  border-radius: 0 10px 10px 0;
+}
+.weekly-bar-segment:only-child {
+  border-radius: 10px;
+}
+.weekly-bar-segment-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,.2);
+  white-space: nowrap;
+}
+.weekly-bar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 12px;
+  color: #bbb5b5;
+}
+
+/* ======================== 情绪周报 - 趋势折线图 ======================== */
+.weekly-game-chart {
+  margin: 0 0 28px;
+}
+.weekly-line-chart {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.weekly-line-svg {
+  display: block;
+  width: 100%;
+  min-width: 320px;
+  height: 200px;
+}
+
+/* ======================== 情绪周报 - 策略排行 ======================== */
+.weekly-strategy-rank {
+  margin: 0 0 28px;
+}
+.strategy-rank-list {
+  display: grid;
+  gap: 10px;
+}
+.strategy-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.strategy-rank-num {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  background: #f0ece8;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.strategy-rank-num.rank-1 {
+  background: #ffd86f;
+  color: #8a6d20;
+}
+.strategy-rank-num.rank-2 {
+  background: #e8e0d8;
+  color: #6a6058;
+}
+.strategy-rank-num.rank-3 {
+  background: #edd8c8;
+  color: #8a6040;
+}
+.strategy-rank-emoji {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.strategy-rank-name {
+  font-size: 14px;
+  font-weight: 700;
+  width: 64px;
+  flex-shrink: 0;
+}
+.strategy-rank-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 99px;
+  background: #f0ece8;
+  overflow: hidden;
+}
+.strategy-rank-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), #6dd4a0);
+  transition: width .5s ease;
+}
+.strategy-rank-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ======================== 情绪周报 - 小结 ======================== */
+.weekly-summary {
+  margin: 0 0 28px;
+}
+.weekly-summary-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.summary-item .summary-icon {
+  font-size: 24px;
+}
+.summary-item div {
+  display: flex;
+  flex-direction: column;
+}
+.summary-item strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+.summary-item span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.weekly-summary-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--muted);
+  background: white;
+  padding: 16px 18px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  margin: 0;
+}
+
+/* ======================== 情绪周报 - 暗色模式 ======================== */
+@media (prefers-color-scheme: dark) {
+  .progress-tabs {
+    background: rgba(255,255,255,.06);
+  }
+  .progress-tab.active {
+    background: #2a2826;
+    color: var(--ink);
+  }
+  .chart-desc {
+    background: rgba(90, 143, 208, .10);
+  }
+  .weekly-bar-track {
+    background: #3a3836;
+  }
+  .weekly-bar-empty {
+    color: #6a6866;
+  }
+  .strategy-rank-item {
+    background: rgba(255,255,255,.06);
+  }
+  .strategy-rank-num {
+    background: #3a3836;
+    color: #a09890;
+  }
+  .strategy-rank-bar {
+    background: #3a3836;
+  }
+  .summary-item {
+    background: rgba(255,255,255,.06);
+  }
+  .weekly-summary-text {
+    background: rgba(255,255,255,.06);
+  }
+}

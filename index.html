@@ -306,91 +306,210 @@
 
       <!-- ==================== 成长 ==================== -->
       <template v-else-if="view === 'progress'">
-        <p class="eyebrow">成长中心</p>
-        <h1 class="page-title">{{ profile.name }} 的成长足迹</h1>
-        <p class="page-subtitle">每一次尝试都值得被看见。</p>
-        <section class="stats-grid">
-          <div class="stat-card"><i>📚</i><b>{{ records.filter(r => r.completed).length }}</b><span>完成课程</span></div>
-          <div class="stat-card"><i>⭐</i><b>{{ records.filter(r => r.completed).reduce((s, r) => s + (r.stars || 0), 0) }}</b><span>收集星星</span></div>
-          <div class="stat-card"><i>🔥</i><b>{{ streakCount }}</b><span>连续天数</span></div>
-        </section>
-        <div class="section-heading"><h2>学科能力</h2><span>按答题正确率</span></div>
-        <section class="subject-progress">
-          <div v-for="s in ['math','physics','english']" :key="s" class="bar-row">
-            <header>
-              <span>{{ SUBJECT_META[s]?.emoji }} {{ SUBJECT_META[s]?.label }}</span>
-              <span>{{ subjectStats(s).count }} 课 · {{ subjectStats(s).accuracy }}%</span>
-            </header>
-            <div class="bar"><i :style="{ width: subjectStats(s).accuracy + '%', background: SUBJECT_META[s]?.color }"></i></div>
-          </div>
-        </section>
-        <div class="section-heading"><h2>课程记录</h2><span>最近 10 节</span></div>
-        <section class="history-list">
-          <template v-if="historyItems().length">
-            <article v-for="(r, i) in historyItems()" :key="i" class="history-item">
-              <div class="history-icon" :style="{ background: SUBJECT_META[r.subject]?.soft, color: SUBJECT_META[r.subject]?.color }">{{ SUBJECT_META[r.subject]?.emoji }}</div>
-              <div class="history-copy"><strong>{{ SUBJECT_META[r.subject]?.label }} · {{ makeSubjectLesson(r.subject, r.day || 1, profile.age).title }}</strong><small>{{ r.date }} · {{ r.correct || 0 }}/{{ r.total || 0 }} 题</small></div>
-              <div class="history-score">{{ "⭐".repeat(r.stars || 0) }}</div>
+        <!-- Tab 切换 -->
+        <div class="progress-tabs">
+          <button class="progress-tab" :class="{ active: progressTab === 'overview' }" @click="progressTab = 'overview'">🌱 成长足迹</button>
+          <button class="progress-tab" :class="{ active: progressTab === 'weekly' }" @click="progressTab = 'weekly'">📊 情绪周报</button>
+        </div>
+
+        <!-- ============ 成长足迹 Tab ============ -->
+        <template v-if="progressTab === 'overview'">
+          <p class="eyebrow">成长中心</p>
+          <h1 class="page-title">{{ profile.name }} 的成长足迹</h1>
+          <p class="page-subtitle">每一次尝试都值得被看见。</p>
+          <section class="stats-grid">
+            <div class="stat-card"><i>📚</i><b>{{ records.filter(r => r.completed).length }}</b><span>完成课程</span></div>
+            <div class="stat-card"><i>⭐</i><b>{{ records.filter(r => r.completed).reduce((s, r) => s + (r.stars || 0), 0) }}</b><span>收集星星</span></div>
+            <div class="stat-card"><i>🔥</i><b>{{ streakCount }}</b><span>连续天数</span></div>
+          </section>
+          <div class="section-heading"><h2>学科能力</h2><span>按答题正确率</span></div>
+          <section class="subject-progress">
+            <div v-for="s in ['math','physics','english']" :key="s" class="bar-row">
+              <header>
+                <span>{{ SUBJECT_META[s]?.emoji }} {{ SUBJECT_META[s]?.label }}</span>
+                <span>{{ subjectStats(s).count }} 课 · {{ subjectStats(s).accuracy }}%</span>
+              </header>
+              <div class="bar"><i :style="{ width: subjectStats(s).accuracy + '%', background: SUBJECT_META[s]?.color }"></i></div>
+            </div>
+          </section>
+          <div class="section-heading"><h2>课程记录</h2><span>最近 10 节</span></div>
+          <section class="history-list">
+            <template v-if="historyItems().length">
+              <article v-for="(r, i) in historyItems()" :key="i" class="history-item">
+                <div class="history-icon" :style="{ background: SUBJECT_META[r.subject]?.soft, color: SUBJECT_META[r.subject]?.color }">{{ SUBJECT_META[r.subject]?.emoji }}</div>
+                <div class="history-copy"><strong>{{ SUBJECT_META[r.subject]?.label }} · {{ makeSubjectLesson(r.subject, r.day || 1, profile.age).title }}</strong><small>{{ r.date }} · {{ r.correct || 0 }}/{{ r.total || 0 }} 题</small></div>
+                <div class="history-score">{{ "⭐".repeat(r.stars || 0) }}</div>
+              </article>
+            </template>
+            <div v-else class="empty">完成课程后，成长记录会出现在这里 🌱</div>
+          </section>
+          <div class="section-heading" v-if="emotionCheckins.length"><h2>😊 情绪日志</h2><span>已记录 {{ emotionCheckins.length }} 天</span></div>
+          <section class="emotion-log" v-if="emotionCheckins.length">
+            <div v-for="(c, i) in [...emotionCheckins].reverse().slice(0, 14)" :key="i"
+              class="emotion-log-item"
+              :style="'--e-color:' + (EMOTION_ZONES.find(z => z.id === c.zone)?.color || 'var(--muted)')">
+              <span class="emotion-log-emoji">{{ EMOTION_ZONES.find(z => z.id === c.zone)?.emoji || '❓' }}</span>
+              <span class="emotion-log-date">{{ c.date.slice(5) }}</span>
+            </div>
+          </section>
+          <div class="section-heading" v-if="emotionGames.length"><h2>🎭 情绪游戏</h2><span>已玩 {{ emotionGames.length }} 次</span></div>
+          <section class="history-list" v-if="emotionGames.length">
+            <article v-for="(g, i) in [...emotionGames].reverse()" :key="i" class="history-item">
+              <div class="history-icon" style="background:#fff0f5;color:#f6a4bb">🎭</div>
+              <div class="history-copy"><strong>情绪识别游戏</strong><small>{{ g.date }} · 答对 {{ g.score }}/{{ g.total }} 题</small></div>
+              <div class="history-score" :style="{ color: g.score >= 5 ? 'var(--green)' : 'var(--orange)' }">{{ g.score >= 5 ? '🌟' : '💪' }}</div>
             </article>
-          </template>
-          <div v-else class="empty">完成课程后，成长记录会出现在这里 🌱</div>
-        </section>
-        <div class="section-heading" v-if="emotionCheckins.length"><h2>😊 情绪日志</h2><span>已记录 {{ emotionCheckins.length }} 天</span></div>
-        <section class="emotion-log" v-if="emotionCheckins.length">
-          <div v-for="(c, i) in [...emotionCheckins].reverse().slice(0, 14)" :key="i"
-            class="emotion-log-item"
-            :style="'--e-color:' + (EMOTION_ZONES.find(z => z.id === c.zone)?.color || 'var(--muted)')">
-            <span class="emotion-log-emoji">{{ EMOTION_ZONES.find(z => z.id === c.zone)?.emoji || '❓' }}</span>
-            <span class="emotion-log-date">{{ c.date.slice(5) }}</span>
-          </div>
-        </section>
-        <div class="section-heading" v-if="emotionGames.length"><h2>🎭 情绪游戏</h2><span>已玩 {{ emotionGames.length }} 次</span></div>
-        <section class="history-list" v-if="emotionGames.length">
-          <article v-for="(g, i) in [...emotionGames].reverse()" :key="i" class="history-item">
-            <div class="history-icon" style="background:#fff0f5;color:#f6a4bb">🎭</div>
-            <div class="history-copy"><strong>情绪识别游戏</strong><small>{{ g.date }} · 答对 {{ g.score }}/{{ g.total }} 题</small></div>
-            <div class="history-score" :style="{ color: g.score >= 5 ? 'var(--green)' : 'var(--orange)' }">{{ g.score >= 5 ? '🌟' : '💪' }}</div>
-          </article>
-        </section>
-        <div class="section-heading" v-if="strategyRecords.length"><h2>🧘 调节策略</h2><span>已尝试 {{ strategyStats.total }} 次</span></div>
-        <section class="strategy-stats" v-if="strategyRecords.length">
-          <div class="strategy-stats-grid">
-            <div class="strategy-stat-card">
-              <i>🔢</i>
-              <b>{{ strategyStats.total }}</b>
-              <span>使用次数</span>
-            </div>
-            <div class="strategy-stat-card">
-              <i>🌈</i>
-              <b>{{ Object.keys(strategyStats.byZone).length }}</b>
-              <span>覆盖分区</span>
-            </div>
-            <div class="strategy-stat-card">
-              <i>🏆</i>
-              <b>{{ Object.keys(strategyStats.byStrategy).length }}</b>
-              <span>不同策略</span>
-            </div>
-          </div>
-          <div class="strategy-zone-breakdown">
-            <div v-for="(count, zone) in strategyStats.byZone" :key="zone" class="strategy-zone-row">
-              <span class="strategy-zone-tag" :style="'--zone-color:' + (EMOTION_ZONES.find(z => z.id === zone)?.color || 'var(--muted)')">
-                {{ EMOTION_ZONES.find(z => z.id === zone)?.emoji || '❓' }} {{ EMOTION_ZONES.find(z => z.id === zone)?.label || zone }}
-              </span>
-              <div class="strategy-zone-bar">
-                <i :style="'width:' + Math.round(count / Math.max(...Object.values(strategyStats.byZone)) * 100) + '%'"></i>
+          </section>
+          <div class="section-heading" v-if="strategyRecords.length"><h2>🧘 调节策略</h2><span>已尝试 {{ strategyStats.total }} 次</span></div>
+          <section class="strategy-stats" v-if="strategyRecords.length">
+            <div class="strategy-stats-grid">
+              <div class="strategy-stat-card">
+                <i>🔢</i>
+                <b>{{ strategyStats.total }}</b>
+                <span>使用次数</span>
               </div>
-              <span class="strategy-zone-count">{{ count }} 次</span>
+              <div class="strategy-stat-card">
+                <i>🌈</i>
+                <b>{{ Object.keys(strategyStats.byZone).length }}</b>
+                <span>覆盖分区</span>
+              </div>
+              <div class="strategy-stat-card">
+                <i>🏆</i>
+                <b>{{ Object.keys(strategyStats.byStrategy).length }}</b>
+                <span>不同策略</span>
+              </div>
             </div>
+            <div class="strategy-zone-breakdown">
+              <div v-for="(count, zone) in strategyStats.byZone" :key="zone" class="strategy-zone-row">
+                <span class="strategy-zone-tag" :style="'--zone-color:' + (EMOTION_ZONES.find(z => z.id === zone)?.color || 'var(--muted)')">
+                  {{ EMOTION_ZONES.find(z => z.id === zone)?.emoji || '❓' }} {{ EMOTION_ZONES.find(z => z.id === zone)?.label || zone }}
+                </span>
+                <div class="strategy-zone-bar">
+                  <i :style="'width:' + Math.round(count / Math.max(...Object.values(strategyStats.byZone)) * 100) + '%'"></i>
+                </div>
+                <span class="strategy-zone-count">{{ count }} 次</span>
+              </div>
+            </div>
+          </section>
+          <div class="section-heading" v-if="wrongAnswers.length"><h2>📝 错题本</h2><span>收集了 {{ wrongAnswers.length }} 道错题</span></div>
+          <section class="history-list" v-if="wrongAnswers.length">
+            <article v-for="(w, i) in wrongAnswers" :key="i" class="history-item">
+              <div class="history-icon" :style="{ background: '#ffeded', color: '#a33835' }">💪</div>
+              <div class="history-copy"><strong>{{ SUBJECT_META[w.subject]?.label || w.subject }}</strong><small>正确答案：{{ w.answer }} · 你选了：{{ w.chosen }}</small></div>
+              <div style="color:#a33835;font-size:12px">{{ w.date }}</div>
+            </article>
+          </section>
+        </template>
+
+        <!-- ============ 情绪周报 Tab ============ -->
+        <template v-if="progressTab === 'weekly'">
+          <p class="eyebrow">情绪发展周报</p>
+          <h1 class="page-title">{{ weeklyReportTitle }}</h1>
+          <p class="page-subtitle">基于过去 4 周的情绪自评、游戏和调节策略数据，了解宝宝的情绪发展基线。</p>
+
+          <template v-if="weeklyReport.weeks.length">
+            <!-- 1. 每周情绪分区分布 -->
+            <div class="section-heading"><h2>🌈 情绪分区分布</h2><span>每周情绪状态构成</span></div>
+            <section class="weekly-zone-chart">
+              <div class="chart-desc">每周各情绪分区出现的天数，反映宝宝的情绪状态分布。绿色越多说明情绪越稳定，红黄区较多时可能需要更多关注。</div>
+              <div class="weekly-stacked-bar-chart">
+                <div v-for="(week, wi) in weeklyReport.weeks" :key="wi" class="weekly-bar-row">
+                  <div class="weekly-bar-label">{{ week.label }}</div>
+                  <div class="weekly-bar-track">
+                    <div v-for="zone in EMOTION_ZONES" :key="zone.id"
+                      v-if="week.zoneDays[zone.id]"
+                      class="weekly-bar-segment"
+                      :style="'width:' + (week.zoneDays[zone.id] / week.totalDays * 100) + '%;background:' + zone.color">
+                      <span v-if="week.zoneDays[zone.id] / week.totalDays >= 0.2" class="weekly-bar-segment-label">{{ week.zoneDays[zone.id] }}天</span>
+                    </div>
+                    <div v-if="!week.hasCheckin" class="weekly-bar-empty">暂无数据</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- 2. 情绪游戏正确率趋势 -->
+            <div class="section-heading" v-if="weeklyReport.hasGameData"><h2>🎯 情绪游戏趋势</h2><span>每周识图正确率</span></div>
+            <section class="weekly-game-chart" v-if="weeklyReport.hasGameData">
+              <div class="chart-desc">每周情绪识别游戏的平均正确率，反映宝宝情绪认知能力的发展趋势。正确率稳步提升说明情绪认知在进步。</div>
+              <div class="weekly-line-chart">
+                <svg :viewBox="'0 0 ' + weeklyGameChart.width + ' ' + weeklyGameChart.height" class="weekly-line-svg">
+                  <!-- 网格线 -->
+                  <line v-for="(g, i) in [0,25,50,75,100]" :key="'g'+i"
+                    :x1="20" :y1="weeklyGameChart.height - 20 - (g/100 * (weeklyGameChart.height - 40))"
+                    :x2="weeklyGameChart.width - 20" :y2="weeklyGameChart.height - 20 - (g/100 * (weeklyGameChart.height - 40))"
+                    stroke="#f0e8e0" stroke-width="1" stroke-dasharray="4,3"/>
+                  <text v-for="(g, i) in [0,25,50,75,100]" :key="'gt'+i"
+                    :x="12" :y="weeklyGameChart.height - 20 - (g/100 * (weeklyGameChart.height - 40)) + 4"
+                    fill="#807987" font-size="10" text-anchor="end">{{ g }}%</text>
+                  <!-- 趋势线 -->
+                  <polyline v-if="weeklyGameChart.points.length > 1"
+                    :points="weeklyGameChart.points.map(p => p.x + ',' + p.y).join(' ')"
+                    fill="none" stroke="#f6a4bb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <!-- 数据点 -->
+                  <circle v-for="(p, i) in weeklyGameChart.points" :key="'pt'+i"
+                    :cx="p.x" :cy="p.y" r="6" fill="white" stroke="#f6a4bb" stroke-width="2.5"/>
+                  <text v-for="(p, i) in weeklyGameChart.points" :key="'pv'+i"
+                    :x="p.x" :y="p.y - 12" fill="#403b46" font-size="11" font-weight="700" text-anchor="middle">{{ p.label }}</text>
+                  <!-- X轴标签 -->
+                  <text v-for="(p, i) in weeklyGameChart.points" :key="'xl'+i"
+                    :x="p.x" :y="weeklyGameChart.height - 5" fill="#807987" font-size="10" text-anchor="middle">{{ p.weekLabel }}</text>
+                </svg>
+              </div>
+            </section>
+
+            <!-- 3. 策略使用频率排行 -->
+            <div class="section-heading" v-if="weeklyReport.strategyRanking.length"><h2>🧘 策略使用排行</h2><span>最常用的调节方法</span></div>
+            <section class="weekly-strategy-rank" v-if="weeklyReport.strategyRanking.length">
+              <div class="chart-desc">过去 4 周最常使用的情绪调节策略，帮助了解哪些方法对宝宝最有效。</div>
+              <div class="strategy-rank-list">
+                <div v-for="(item, i) in weeklyReport.strategyRanking" :key="item.id"
+                  class="strategy-rank-item">
+                  <span class="strategy-rank-num" :class="'rank-' + (i + 1)">{{ i + 1 }}</span>
+                  <span class="strategy-rank-emoji">{{ item.emoji }}</span>
+                  <span class="strategy-rank-name">{{ item.name }}</span>
+                  <div class="strategy-rank-bar">
+                    <i :style="'width:' + (item.count / weeklyReport.strategyRanking[0].count * 100) + '%'"></i>
+                  </div>
+                  <span class="strategy-rank-count">{{ item.count }} 次</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- 4. 整体评估总结 -->
+            <div class="section-heading" v-if="weeklyReport.weeks.length"><h2>📝 小结</h2></div>
+            <section class="weekly-summary" v-if="weeklyReport.weeks.length">
+              <div class="weekly-summary-card">
+                <div class="summary-item">
+                  <span class="summary-icon">📅</span>
+                  <div>
+                    <strong>{{ weeklyReport.totalCheckinDays }} 天</strong>
+                    <span>情绪自评天数</span>
+                  </div>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-icon">🎭</span>
+                  <div>
+                    <strong>{{ weeklyReport.totalGames }} 次</strong>
+                    <span>情绪游戏次数</span>
+                  </div>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-icon">🧘</span>
+                  <div>
+                    <strong>{{ weeklyReport.totalStrategyUsage }} 次</strong>
+                    <span>策略使用次数</span>
+                  </div>
+                </div>
+              </div>
+              <p class="weekly-summary-text">{{ weeklyReportSummary }}</p>
+            </section>
+          </template>
+          <div v-else class="empty">
+            <p>还没有足够的情绪数据来生成周报 📊</p>
+            <p>坚持每天进行情绪自评、玩情绪游戏和尝试调节策略，<br>4 周后这里会展示宝宝的情绪发展报告。</p>
           </div>
-        </section>
-        <div class="section-heading" v-if="wrongAnswers.length"><h2>📝 错题本</h2><span>收集了 {{ wrongAnswers.length }} 道错题</span></div>
-        <section class="history-list" v-if="wrongAnswers.length">
-          <article v-for="(w, i) in wrongAnswers" :key="i" class="history-item">
-            <div class="history-icon" :style="{ background: '#ffeded', color: '#a33835' }">💪</div>
-            <div class="history-copy"><strong>{{ SUBJECT_META[w.subject]?.label || w.subject }}</strong><small>正确答案：{{ w.answer }} · 你选了：{{ w.chosen }}</small></div>
-            <div style="color:#a33835;font-size:12px">{{ w.date }}</div>
-          </article>
-        </section>
+        </template>
       </template>
 
       <!-- ==================== 我的 ==================== -->
