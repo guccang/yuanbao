@@ -146,6 +146,7 @@
           <button class="icon-btn" @click="exitLesson" aria-label="退出课程">‹</button>
           <div class="step-progress"><i :style="{ width: progressPercent + '%' }"></i></div>
           <div class="step-count">{{ activityIndex + 1 }}/{{ totalActivities }}</div>
+          <div class="focus-timer-badge">⏱️ {{ focusDisplay }}</div>
         </header>
         <main class="activity">
           <span class="subject-tag" :style="{ '--tag-color': subjectMeta?.color, '--tag-soft': subjectMeta?.soft, '--tag-text': subjectMeta?.color }">
@@ -332,12 +333,18 @@
               <div class="bar"><i :style="{ width: subjectStats(s).accuracy + '%', background: SUBJECT_META[s]?.color }"></i></div>
             </div>
           </section>
+          <div class="section-heading" v-if="focusStats.total > 0"><h2>⏱️ 专注力</h2><span>已记录 {{ focusStats.total }} 次</span></div>
+          <section class="stats-grid" v-if="focusStats.total > 0">
+            <div class="stat-card"><i>⏱️</i><b>{{ focusStats.avgDisplay }}</b><span>平均专注时长</span></div>
+            <div class="stat-card"><i>🏆</i><b>{{ focusStats.longestDisplay }}</b><span>最长专注时长</span></div>
+            <div class="stat-card"><i>⏰</i><b>{{ focusStats.totalDisplay }}</b><span>累计专注时长</span></div>
+          </section>
           <div class="section-heading"><h2>课程记录</h2><span>最近 10 节</span></div>
           <section class="history-list">
             <template v-if="historyItems().length">
               <article v-for="(r, i) in historyItems()" :key="i" class="history-item">
                 <div class="history-icon" :style="{ background: SUBJECT_META[r.subject]?.soft, color: SUBJECT_META[r.subject]?.color }">{{ SUBJECT_META[r.subject]?.emoji }}</div>
-                <div class="history-copy"><strong>{{ SUBJECT_META[r.subject]?.label }} · {{ makeSubjectLesson(r.subject, r.day || 1, profile.age).title }}</strong><small>{{ r.date }} · {{ r.correct || 0 }}/{{ r.total || 0 }} 题</small></div>
+                <div class="history-copy"><strong>{{ SUBJECT_META[r.subject]?.label }} · {{ makeSubjectLesson(r.subject, r.day || 1, profile.age).title }}</strong><small>{{ r.date }} · {{ r.correct || 0 }}/{{ r.total || 0 }} 题<span v-if="r.duration"> · ⏱️ {{ r.duration < 60 ? r.duration + '秒' : Math.floor(r.duration / 60) + '分' + (r.duration % 60 || '') + '秒' }}</span></small></div>
                 <div class="history-score">{{ "⭐".repeat(r.stars || 0) }}</div>
               </article>
             </template>

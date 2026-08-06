@@ -363,6 +363,9 @@ const app = createApp({
     const strategyFindObjects = ref([]);
     const strategyCalmStars = ref([]);
     const strategyTapEmoji = ref('');
+    // 专注力计时器
+    const focusElapsed = ref(0);
+    let focusTimerInterval = null;
     // 成长页面 Tab 切换
     const progressTab = ref("overview"); // overview | weekly
     // 表单
@@ -641,6 +644,11 @@ const app = createApp({
       if (totalQuestions >= 10 && totalCorrect === totalQuestions) list.push({ id: "perfect", emoji: "💯", label: "完美起步", desc: "10 题全部答对", earned: true });
       if (totalQuestions >= 100) list.push({ id: "century", emoji: "🎯", label: "百题斩", desc: "累计完成 100 题", earned: true });
       if (totalQuestions >= 500) list.push({ id: "fivecentury", emoji: "👑", label: "答题王者", desc: "累计完成 500 题", earned: true });
+      // 专注力徽章
+      const focusMinutes = Math.floor(focusStats.value.totalDuration / 60);
+      if (focusMinutes >= 5) list.push({ id: "focus5", emoji: "🧘", label: "专注起步", desc: "累计专注 5 分钟", earned: true });
+      if (focusMinutes >= 30) list.push({ id: "focus30", emoji: "⏱️", label: "专注能手", desc: "累计专注 30 分钟", earned: true });
+      if (focusMinutes >= 120) list.push({ id: "focus120", emoji: "🏅", label: "专注达人", desc: "累计专注 2 小时", earned: true });
 
       return list;
     });
@@ -698,12 +706,14 @@ const app = createApp({
       answerCorrect.value = null;
       completionCelebrated.value = false;
       view.value = "lesson";
+      startFocusTimer();
     }
 
     function exitLesson() {
       view.value = "home";
       feedback.value = null;
       answerDisabled.value = false;
+      stopFocusTimer();
     }
 
     // ---- Answer ----
@@ -769,6 +779,7 @@ const app = createApp({
       activityIndex.value++;
       const l = lesson.value;
       if (!l || activityIndex.value >= l.activities.length) {
+        stopFocusTimer();
         const correct = answers.value.filter(a => a?.correct).length;
         const total = l?.activities?.length || answers.value.length;
         const record = {
@@ -780,7 +791,8 @@ const app = createApp({
           total,
           stars: Math.max(1, Math.round(correct / 2)),
           answers: answers.value,
-          completedAt: new Date().toISOString()
+          completedAt: new Date().toISOString(),
+          duration: focusElapsed.value
         };
         if (!isReview.value) {
           try {
@@ -1153,6 +1165,26 @@ const app = createApp({
       return 0.5 + pct * 0.8;
     });
 
+    // ---- 专注力统计 ----
+    const focusDisplay = computed(() => {
+      const s = focusElapsed.value;
+      if (s < 60) return s + '秒';
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return m + '分' + sec + '秒';
+    });
+
+    const focusStats = computed(() => {
+      const completed = records.value.filter(r => r.completed && typeof r.duration === 'number');
+      if (!completed.length) return { total: 0, avgDuration: 0, longest: 0, totalDuration: 0, avgDisplay: '--', longestDisplay: '--', totalDisplay: '--' };
+      const durations = completed.map(r => r.duration);
+      const avg = Math.round(durations.reduce((s, d) => s + d, 0) / durations.length);
+      const longest = Math.max(...durations);
+      const total = durations.reduce((s, d) => s + d, 0);
+      const fmt = (sec) => { if (sec < 60) return sec + '秒'; const m = Math.floor(sec / 60); return m + '分' + (sec % 60 || '') + '秒'; };
+      return { total: completed.length, avgDuration: avg, longest, totalDuration: total, avgDisplay: fmt(avg), longestDisplay: fmt(longest), totalDisplay: fmt(total) };
+    });
+
     function getStrategyById(zone, id) {
       const strategies = EMOTION_STRATEGIES[zone] || [];
       return strategies.find(s => s.id === id) || null;
@@ -1353,6 +1385,22 @@ const app = createApp({
       }
     }
 
+    // ---- 专注力计时器 ----
+    function startFocusTimer() {
+      stopFocusTimer();
+      focusElapsed.value = 0;
+      focusTimerInterval = setInterval(() => {
+        focusElapsed.value++;
+      }, 1000);
+    }
+
+    function stopFocusTimer() {
+      if (focusTimerInterval) {
+        clearInterval(focusTimerInterval);
+        focusTimerInterval = null;
+      }
+    }
+
     function startEmotionGame() {
       emotionGameView.value = "playing";
       emotionGameIndex.value = 0;
@@ -1507,6 +1555,8 @@ const app = createApp({
       // strategy detail state
       strategyDetail, strategyTapAnimate, strategyTimerElapsed,
       strategyCompleted, strategyFindObjects, strategyCalmStars, strategyTapEmoji,
+      // focus state
+      focusElapsed,
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
@@ -1516,6 +1566,8 @@ const app = createApp({
       // strategy detail computed
       strategyTimerDisplay, strategyProgressPercent, strategyCanComplete,
       strategyActionHint, strategyEncouragement, strategyFindRemaining, strategyBalloonScale,
+      // focus computed
+      focusDisplay, focusStats,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
