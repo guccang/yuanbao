@@ -310,6 +310,7 @@
         <!-- Tab 切换 -->
         <div class="progress-tabs">
           <button class="progress-tab" :class="{ active: progressTab === 'overview' }" @click="progressTab = 'overview'">🌱 成长足迹</button>
+          <button class="progress-tab" :class="{ active: progressTab === 'trends' }" @click="progressTab = 'trends'">📈 学习趋势</button>
           <button class="progress-tab" :class="{ active: progressTab === 'weekly' }" @click="progressTab = 'weekly'">📊 情绪周报</button>
           <button class="progress-tab" :class="{ active: progressTab === 'communication' }" @click="progressTab = 'communication'; communicationLogTab = getCurrentWeekCommunicationLog() ? 'history' : 'form'">🗣️ 沟通日志</button>
         </div>
@@ -407,6 +408,118 @@
               <div style="color:#a33835;font-size:12px">{{ w.date }}</div>
             </article>
           </section>
+        </template>
+
+        <!-- ============ 学习趋势 Tab ============ -->
+        <template v-if="progressTab === 'trends'">
+          <p class="eyebrow">学习趋势</p>
+          <h1 class="page-title">发展能力趋势</h1>
+          <p class="page-subtitle">基于方法论文档的验证矩阵，追踪沟通、学习与专注力的发展变化。数据越多，趋势越准确。</p>
+
+          <!-- 沟通能力趋势 -->
+          <template v-if="communicationTrends.chartData">
+            <div class="section-heading"><h2>🗣️ 沟通能力趋势</h2><span>基于每周沟通日志</span></div>
+            <section class="trend-chart-section">
+              <div class="chart-desc">词汇量增长反映语言发展速度，叙事能力和对话轮次反映沟通质量。持续上升趋势说明沟通能力在健康发展。</div>
+              <div v-for="series in communicationTrends.chartData" :key="series.metric.key" class="trend-mini-chart">
+                <div class="trend-mini-header">
+                  <span class="trend-mini-label" :style="{ color: series.metric.color }">{{ series.metric.label }}</span>
+                  <span class="trend-mini-range">{{ series.points.length ? series.points[0].label + ' → ' + series.points[series.points.length - 1].label : '' }}</span>
+                </div>
+                <div class="trend-chart-container">
+                  <svg :viewBox="'0 0 ' + communicationTrends.width + ' ' + communicationTrends.height" class="trend-line-svg">
+                    <line v-for="(g, i) in [0, 25, 50, 75, 100]" :key="'cg'+i"
+                      :x1="20" :y1="communicationTrends.height - 20 - (g/100 * (communicationTrends.height - 40))"
+                      :x2="communicationTrends.width - 20" :y2="communicationTrends.height - 20 - (g/100 * (communicationTrends.height - 40))"
+                      stroke="#f0e8e0" stroke-width="1" stroke-dasharray="4,3"/>
+                    <polyline v-if="series.points.length > 1"
+                      :points="series.points.map(p => p.x + ',' + p.y).join(' ')"
+                      :stroke="series.metric.color" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle v-for="(p, i) in series.points" :key="'cp'+i"
+                      :cx="p.x" :cy="p.y" r="5" :fill="series.metric.color" stroke="white" stroke-width="2"/>
+                    <text v-for="(p, i) in series.points" :key="'cl'+i"
+                      :x="p.x" :y="p.y - 10" :fill="series.metric.color" font-size="10" font-weight="700" text-anchor="middle">{{ p.label }}</text>
+                    <text v-for="(p, i) in series.points" :key="'cx'+i"
+                      :x="p.x" :y="communicationTrends.height - 5" fill="#807987" font-size="9" text-anchor="middle">{{ p.weekLabel }}</text>
+                  </svg>
+                </div>
+              </div>
+            </section>
+          </template>
+          <div v-else class="empty">
+            <p>暂无沟通日志数据 📝</p>
+            <p>在「沟通日志」中每周记录一次，即可查看沟通能力发展趋势。</p>
+          </div>
+
+          <!-- 学科正确率趋势 -->
+          <template v-if="subjectAccuracyTrends.chartData">
+            <div class="section-heading"><h2>📚 学科正确率趋势</h2><span>按周统计各学科正确率</span></div>
+            <section class="trend-chart-section">
+              <div class="chart-desc">各学科每周答题正确率变化，反映知识掌握程度。正确率稳步提升或保持高位说明学习效果良好。</div>
+              <div v-for="series in subjectAccuracyTrends.chartData" :key="series.subject" class="trend-mini-chart">
+                <div class="trend-mini-header">
+                  <span class="trend-mini-label" :style="{ color: series.color }">{{ series.emoji }} {{ series.label }}</span>
+                  <span class="trend-mini-range">{{ series.points.length ? series.points.filter(p => p.hasData).length + ' 周数据' : '' }}</span>
+                </div>
+                <div class="trend-chart-container">
+                  <svg :viewBox="'0 0 ' + subjectAccuracyTrends.width + ' ' + subjectAccuracyTrends.height" class="trend-line-svg">
+                    <line v-for="(g, i) in [0, 25, 50, 75, 100]" :key="'sg'+i"
+                      :x1="20" :y1="subjectAccuracyTrends.height - 20 - (g/100 * (subjectAccuracyTrends.height - 40))"
+                      :x2="subjectAccuracyTrends.width - 20" :y2="subjectAccuracyTrends.height - 20 - (g/100 * (subjectAccuracyTrends.height - 40))"
+                      stroke="#f0e8e0" stroke-width="1" stroke-dasharray="4,3"/>
+                    <polyline v-if="series.points.filter(p => p.hasData).length > 1"
+                      :points="series.points.filter(p => p.hasData).map(p => p.x + ',' + p.y).join(' ')"
+                      :stroke="series.color" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle v-for="(p, i) in series.points.filter(p => p.hasData)" :key="'sp'+i"
+                      :cx="p.x" :cy="p.y" r="5" :fill="series.color" stroke="white" stroke-width="2"/>
+                    <text v-for="(p, i) in series.points.filter(p => p.hasData)" :key="'sl'+i"
+                      :x="p.x" :y="p.y - 10" :fill="series.color" font-size="10" font-weight="700" text-anchor="middle">{{ p.label }}</text>
+                    <text v-for="(p, i) in series.points" :key="'sx'+i"
+                      :x="p.x" :y="subjectAccuracyTrends.height - 5" fill="#807987" font-size="9" text-anchor="middle">{{ p.weekLabel }}</text>
+                  </svg>
+                </div>
+              </div>
+            </section>
+          </template>
+          <div v-else class="empty">
+            <p>暂无学习记录数据 📊</p>
+            <p>完成课程后，学科正确率趋势会出现在这里。</p>
+          </div>
+
+          <!-- 专注力趋势 -->
+          <template v-if="focusTrends.chartData">
+            <div class="section-heading"><h2>⏱️ 专注力趋势</h2><span>每周平均专注时长</span></div>
+            <section class="trend-chart-section">
+              <div class="chart-desc">每周平均专注时长变化，反映注意力持续能力的发展。根据方法论文档，3-6岁儿童的主动任务持续注意力应随年龄逐步增长。</div>
+              <div class="trend-mini-chart">
+                <div class="trend-mini-header">
+                  <span class="trend-mini-label" style="color:#ff8d72">⏱️ 平均专注时长</span>
+                  <span class="trend-mini-range">{{ focusTrends.weeks.length }} 周数据</span>
+                </div>
+                <div class="trend-chart-container">
+                  <svg :viewBox="'0 0 ' + focusTrends.width + ' ' + focusTrends.height" class="trend-line-svg">
+                    <line v-for="(g, i) in [0, 25, 50, 75, 100]" :key="'fg'+i"
+                      :x1="20" :y1="focusTrends.height - 20 - (g/100 * (focusTrends.height - 40))"
+                      :x2="focusTrends.width - 20" :y2="focusTrends.height - 20 - (g/100 * (focusTrends.height - 40))"
+                      stroke="#f0e8e0" stroke-width="1" stroke-dasharray="4,3"/>
+                    <polyline v-if="focusTrends.chartData.points.length > 1"
+                      :points="focusTrends.chartData.points.map(p => p.x + ',' + p.y).join(' ')"
+                      stroke="#ff8d72" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle v-for="(p, i) in focusTrends.chartData.points" :key="'fp'+i"
+                      :cx="p.x" :cy="p.y" r="5" fill="#ff8d72" stroke="white" stroke-width="2"/>
+                    <text v-for="(p, i) in focusTrends.chartData.points" :key="'fl'+i"
+                      :x="p.x" :y="p.y - 10" fill="#ff8d72" font-size="10" font-weight="700" text-anchor="middle">{{ p.label }}</text>
+                    <text v-for="(p, i) in focusTrends.chartData.points" :key="'fx'+i"
+                      :x="p.x" :y="focusTrends.height - 5" fill="#807987" font-size="9" text-anchor="middle">{{ p.weekLabel }}</text>
+                  </svg>
+                </div>
+              </div>
+            </section>
+          </template>
+          <div v-else class="empty">
+            <p>暂无专注力数据 ⏱️</p>
+            <p>完成课程时专注力计时器会自动记录数据，继续学习即可看到趋势。</p>
+          </div>
         </template>
 
         <!-- ============ 情绪周报 Tab ============ -->

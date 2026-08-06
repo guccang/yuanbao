@@ -1566,6 +1566,42 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   text-align: right;
 }
 
+/* ======================== 学习趋势 ======================== */
+.trend-chart-section {
+  margin-bottom: 20px;
+}
+.trend-mini-chart {
+  margin-bottom: 24px;
+  background: white;
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid #f0e8e0;
+}
+.trend-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.trend-mini-label {
+  font-weight: 800;
+  font-size: 14px;
+}
+.trend-mini-range {
+  font-size: 11px;
+  color: var(--muted);
+}
+.trend-chart-container {
+  width: 100%;
+  overflow: hidden;
+}
+.trend-line-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 180px;
+}
+
 /* ======================== 深色模式适配 ======================== */
 @media (prefers-color-scheme: dark) {
   .emotion-checkin-bar {
@@ -2945,5 +2981,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .focus-timer-badge {
     background: #3a3836;
     color: #a09890;
+  }
+  .trend-mini-chart {
+    background: #242220;
+    border-color: #33302e;
+  }
+  .trend-mini-range {
+    color: #807970;
+  }
+  .trend-line-svg line {
+    stroke: #33302e;
   }
 }

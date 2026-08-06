@@ -647,6 +647,124 @@ const app = createApp({
       return { points, width, height };
     });
 
+    // ---- 学习趋势数据 ----
+    const communicationTrends = computed(() => {
+      const logs = [...(communicationLogs.value || [])].sort((a, b) => a.weekId.localeCompare(b.weekId));
+      if (!logs.length) return { chartData: null, width: 320, height: 180 };
+      const width = 320;
+      const height = 180;
+      const padding = { top: 20, right: 10, bottom: 30, left: 40 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+
+      const metrics = [
+        { key: 'vocabulary', label: '词汇量', color: '#75a7ed' },
+        { key: 'conversationTurns', label: '对话轮次', color: '#55b98b' },
+        { key: 'narrativeScore', label: '叙事能力', color: '#ff8d72' },
+        { key: 'initiativeScore', label: '沟通主动性', color: '#a58ae5' }
+      ];
+
+      const chartData = metrics.map(metric => {
+        const values = logs.map(l => ({ week: getWeekLabel(l.weekId), value: l[metric.key] }));
+        const maxVal = Math.max(...values.map(v => v.value), 1);
+        const points = values.map((v, i) => {
+          const x = padding.left + (i / Math.max(values.length - 1, 1)) * chartW;
+          const y = padding.top + chartH - (v.value / maxVal * chartH);
+          return { x, y, label: String(v.value), weekLabel: v.week };
+        });
+        return { metric, points, maxVal };
+      });
+      return { chartData, width, height };
+    });
+
+    const subjectAccuracyTrends = computed(() => {
+      const completed = (records.value || []).filter(r => r.completed).sort((a, b) => a.date.localeCompare(b.date));
+      if (!completed.length) return { chartData: null, width: 320, height: 180 };
+
+      // 按周分组
+      const weekMap = {};
+      for (const r of completed) {
+        const d = new Date(r.date);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const weekKey = d.getFullYear() + '-W' + String(Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7)).padStart(2, '0');
+        if (!weekMap[weekKey]) weekMap[weekKey] = { weekKey, records: [] };
+        weekMap[weekKey].records.push(r);
+      }
+      const weeks = Object.values(weekMap).sort((a, b) => a.weekKey.localeCompare(b.weekKey));
+
+      const width = 320;
+      const height = 180;
+      const padding = { top: 20, right: 10, bottom: 30, left: 40 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+
+      const subjects = ['math', 'physics', 'english'];
+      const chartData = subjects.map(subj => {
+        const meta = SUBJECT_META[subj];
+        const points = weeks.map((week, i) => {
+          const subjRecords = week.records.filter(r => r.subject === subj);
+          const answers = subjRecords.flatMap(r => r.answers || []);
+          const acc = answers.length ? Math.round(answers.filter(a => a.correct).length / answers.length * 100) : 0;
+          const x = padding.left + (i / Math.max(weeks.length - 1, 1)) * chartW;
+          const y = padding.top + chartH - (acc / 100 * chartH);
+          const weekLabel = (() => {
+            const parts = week.weekKey.split('-W');
+            if (parts.length !== 2) return week.weekKey;
+            const d = new Date(parseInt(parts[0]), 0, 4);
+            d.setDate(d.getDate() + (parseInt(parts[1]) - 1) * 7 - (d.getDay() + 6) % 7);
+            return (d.getMonth() + 1) + '/' + d.getDate();
+          })();
+          return { x, y, label: acc > 0 ? acc + '%' : '', weekLabel, hasData: answers.length > 0 };
+        });
+        return { subject: subj, label: meta.label, emoji: meta.emoji, color: meta.color, points };
+      });
+      return { chartData, weeks, width, height };
+    });
+
+    const focusTrends = computed(() => {
+      const completed = (records.value || []).filter(r => r.completed && typeof r.duration === 'number').sort((a, b) => a.date.localeCompare(b.date));
+      if (!completed.length) return { chartData: null, width: 320, height: 180 };
+
+      // 按周分组
+      const weekMap = {};
+      for (const r of completed) {
+        const d = new Date(r.date);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const weekKey = d.getFullYear() + '-W' + String(Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7)).padStart(2, '0');
+        if (!weekMap[weekKey]) weekMap[weekKey] = { weekKey, durations: [] };
+        weekMap[weekKey].durations.push(r.duration);
+      }
+      const weeks = Object.values(weekMap).sort((a, b) => a.weekKey.localeCompare(b.weekKey));
+
+      const width = 320;
+      const height = 180;
+      const padding = { top: 20, right: 10, bottom: 30, left: 40 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+
+      const maxDuration = Math.max(...weeks.map(w => {
+        const avg = w.durations.reduce((s, d) => s + d, 0) / w.durations.length;
+        return Math.ceil(avg / 30) * 30;
+      }), 60);
+
+      const points = weeks.map((week, i) => {
+        const avg = Math.round(week.durations.reduce((s, d) => s + d, 0) / week.durations.length);
+        const x = padding.left + (i / Math.max(weeks.length - 1, 1)) * chartW;
+        const y = padding.top + chartH - (avg / maxDuration * chartH);
+        const fmt = (s) => s < 60 ? s + '秒' : Math.floor(s / 60) + '分' + (s % 60 || '') + '秒';
+        const weekLabel = (() => {
+          const parts = week.weekKey.split('-W');
+          if (parts.length !== 2) return week.weekKey;
+          const d = new Date(parseInt(parts[0]), 0, 4);
+          d.setDate(d.getDate() + (parseInt(parts[1]) - 1) * 7 - (d.getDay() + 6) % 7);
+          return (d.getMonth() + 1) + '/' + d.getDate();
+        })();
+        return { x, y, label: fmt(avg), weekLabel, count: week.durations.length };
+      });
+
+      return { chartData: { points, maxDuration, unit: '秒' }, weeks, width, height };
+    });
+
     // ---- 成就徽章 ----
     const achievements = computed(() => {
       const list = [];
@@ -1750,6 +1868,8 @@ const app = createApp({
       strategyActionHint, strategyEncouragement, strategyFindRemaining, strategyBalloonScale,
       // focus computed
       focusDisplay, focusStats,
+      // trend computed
+      communicationTrends, subjectAccuracyTrends, focusTrends,
       // methods
       navigate, showToast, startSubjectLesson, exitLesson,
       answerQuestion, nextActivity,
