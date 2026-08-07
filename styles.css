@@ -1430,8 +1430,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 16px;
+  padding: 14px 14px;
+  border-radius: 20px;
   font-weight: 800;
   font-size: 14px;
 }
@@ -1731,8 +1731,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .trend-mini-chart {
   margin-bottom: 24px;
   background: white;
-  border-radius: 16px;
-  padding: 12px;
+  border-radius: 20px;
+  padding: 14px;
   border: 1px solid #f0e8e0;
 }
 .trend-mini-header {
@@ -1766,7 +1766,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .verification-card {
   background: white;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 14px;
   margin-bottom: 12px;
   border: 1px solid #f0e8e0;
@@ -2252,9 +2252,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 14px 14px;
   background: white;
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,.04);
 }
 .strategy-rank-num {
@@ -2331,7 +2331,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   gap: 10px;
   padding: 14px 12px;
   background: white;
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,.04);
 }
 .summary-item .summary-icon {
@@ -2355,7 +2355,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   color: var(--muted);
   background: white;
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,.04);
   margin: 0;
 }
