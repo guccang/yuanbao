@@ -115,11 +115,6 @@ function localDate(date = new Date()) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
-function dateFromKey(key) {
-  const [year, month, day] = key.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
 function todayDayOfWeek() {
   return new Date().getDay();
 }
@@ -154,8 +149,6 @@ function makeSubjectLesson(subject, day, age) {
 // ======================== Progress Helpers ========================
 function computeSubjectDays(records, startedAt) {
   if (!startedAt) return { math: 1, physics: 1, english: 1 };
-  const start = dateFromKey(startedAt);
-  const today = dateFromKey(localDate());
   const counts = {};
   for (const subj of ["math", "physics", "english"]) {
     const completed = records.filter(r => r.subject === subj && r.completed).length;
@@ -319,7 +312,6 @@ const app = createApp({
     const answers = ref([]);
     const feedback = ref(null);
     const isReview = ref(false);
-    const completionCelebrated = ref(false);
     const toastMessage = ref("");
     const toastVisible = ref(false);
     const answerDisabled = ref(false);
@@ -953,7 +945,6 @@ const app = createApp({
       answerDisabled.value = false;
       answerChosen.value = null;
       answerCorrect.value = null;
-      completionCelebrated.value = false;
       view.value = "lesson";
       startFocusTimer();
     }
@@ -1122,18 +1113,6 @@ const app = createApp({
     }
 
     // ---- Profile ----
-    async function editProfile(name, age) {
-      if (!name?.trim() || ![3, 4, 5, 6].includes(age)) {
-        showToast("请填写有效的小名和年龄（3–6 岁）");
-        return;
-      }
-      const updated = { ...profile.value, name: name.trim().slice(0, 8), age };
-      profile.value = updated;
-      await saveProfile(updated);
-      selectedAge.value = age;
-      showToast("宝宝资料已更新");
-    }
-
     async function resetData() {
       if (!confirm("确定清除宝宝资料和全部学习记录吗？此操作无法撤销。")) return;
       await api("/api/state", { method: "DELETE" });
@@ -1939,7 +1918,7 @@ const app = createApp({
       // state
       view, accountId, profile, records, schedule, selectedAge,
       selectedSubject, lesson, activityIndex, answers, feedback,
-      isReview, completionCelebrated, toastMessage, toastVisible,
+      isReview, toastMessage, toastVisible,
       answerDisabled, answerChosen, answerCorrect, editDialog, loading,
       authError, loginUsername, loginPassword, regUsername, regPassword, regChildName,
       showEditProfile, editName, editAge,
