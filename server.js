@@ -873,8 +873,8 @@ const server = http.createServer(async (request, response) => {
     const ext = path.extname(filePath);
     const contentType = types[ext] || "application/octet-stream";
 
-    // Service Worker 必须每次重新检查，其他静态资源由服务端校验新鲜度。
-    const cacheControl = relativePath === "sw.js" ? "no-store" : "no-cache";
+    // 静态资源由服务端校验新鲜度。
+    const cacheControl = "no-cache";
 
     // gzip 压缩：仅对大于 1KB 的文本类响应启用
     const acceptsGzip = request.headers["accept-encoding"]?.includes("gzip");

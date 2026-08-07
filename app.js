@@ -1888,10 +1888,6 @@ const app = createApp({
 
     // ---- Init ----
     onMounted(async () => {
-      // 注册 Service Worker（PWA 离线支持）
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
-      }
       try {
         const saved = await api("/api/state");
         if (saved.profile) {
