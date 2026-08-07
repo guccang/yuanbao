@@ -17,34 +17,17 @@ var MATH_THEMES = [
   { name: "天气乐园",   emoji: "🌈", items: ["☀️", "🌧️", "🌈", "⛄"] }
 ];
 
-function seeded(seed) {
-  var value = seed % 2147483647;
-  if (value <= 0) value += 2147483646;
-  return function() { return (value = value * 16807 % 2147483647) / 2147483647; };
-}
-
-function shuffle(list, random) {
-  var result = list.slice();
-  for (var i = result.length - 1; i > 0; i--) {
-    var j = Math.floor(random() * (i + 1));
-    var tmp = result[i];
-    result[i] = result[j];
-    result[j] = tmp;
-  }
-  return result;
-}
-
 function numberOptions(answer, max, random) {
   var values = [answer];
   while (values.length < 4) {
     var n = 1 + Math.floor(random() * max);
     if (values.indexOf(n) === -1) values.push(n);
   }
-  return shuffle(values, random);
+  return window.SubjectUtils.shuffle(values, random);
 }
 
 function generateLesson(day, age) {
-  var random = seeded(day * 7919 + age * 101);
+  var random = window.SubjectUtils.seeded(day * 7919 + age * 101);
   var theme = MATH_THEMES[(day - 1) % MATH_THEMES.length];
   var maxNumber = age === 3 ? 5 : age === 4 ? 8 : age === 5 ? 12 : 20;
   var item = theme.items[day % theme.items.length];
@@ -76,7 +59,7 @@ function generateLesson(day, age) {
       hint: "看看两组小伙伴，选出数量更多的一组",
       visual: repeatStr(theme.emoji, smaller) + "  ·  " + repeatStr(theme.emoji, larger),
       answer: String(larger),
-      options: shuffle([smaller, larger], random)
+      options: window.SubjectUtils.shuffle([smaller, larger], random)
     },
     // 活动 3：数字规律
     {
@@ -98,7 +81,7 @@ function generateLesson(day, age) {
       hint: "看一看，说出它的名字",
       visual: shape.split(" ")[0],
       answer: shape,
-      options: shuffle(SHAPES, random)
+      options: window.SubjectUtils.shuffle(SHAPES, random)
     },
     // 活动 5：综合挑战
     {
@@ -126,7 +109,7 @@ function generateLesson(day, age) {
       hint: "比一比两个数字的大小",
       visual: String(addA) + "  vs  " + String(sum),
       answer: String(sum),
-      options: shuffle([addA, sum], random)
+      options: window.SubjectUtils.shuffle([addA, sum], random)
     } : null
   ].filter(function(a) { return a !== null; });
 

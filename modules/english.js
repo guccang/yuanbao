@@ -101,32 +101,18 @@ const WORDS = [
   { en: "puzzle",  cn: "拼图",   emoji: "🧩",  group: "玩具" }
 ];
 
-function seeded(seed) {
-  let value = seed % 2147483647;
-  if (value <= 0) value += 2147483646;
-  return () => (value = value * 16807 % 2147483647) / 2147483647;
-}
-
-function shuffle(list, random) {
-  const result = [...list];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
 /**
+ * 生成一节英语课
  * 生成一节英语课（5 个活动）
  * @param {number} day - 学习天数（从 1 开始）
  * @param {number} age - 宝宝年龄（3–6）
  * @returns {object} lesson
  */
 function generateLesson(day, age) {
-  const random = seeded(day * 3719 + age * 331);
+  const random = window.SubjectUtils.seeded(day * 3719 + age * 331);
   const word = WORDS[(day - 1) % WORDS.length];
-  const distractors = shuffle(WORDS.filter(w => w.en !== word.en), random).slice(0, 4);
-  const wordOptions = shuffle([word, ...distractors.slice(0, 3)], random);
+  const distractors = window.SubjectUtils.shuffle(WORDS.filter(w => w.en !== word.en), random).slice(0, 4);
+  const wordOptions = window.SubjectUtils.shuffle([word, ...distractors.slice(0, 3)], random);
 
   const activities = [
     // 活动 1：新单词介绍
@@ -156,7 +142,7 @@ function generateLesson(day, age) {
       visual: word.emoji,
       word,
       answer: word.en,
-      options: shuffle([word.en, ...distractors.slice(0, 3).map(w => w.en)], random)
+      options: window.SubjectUtils.shuffle([word.en, ...distractors.slice(0, 3).map(w => w.en)], random)
     },
     // 活动 4：看词选图
     {
@@ -175,7 +161,7 @@ function generateLesson(day, age) {
       visual: word.emoji,
       word,
       answer: word.cn,
-      options: shuffle([word.cn, ...distractors.slice(0, 3).map(w => w.cn)], random)
+      options: window.SubjectUtils.shuffle([word.cn, ...distractors.slice(0, 3).map(w => w.cn)], random)
     }
   ];
 
