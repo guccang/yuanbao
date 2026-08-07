@@ -1092,7 +1092,7 @@ const app = createApp({
         view.value = "home";
         selectedAge.value = saved.profile?.age || 4;
         communicationLogs.value = saved.communicationLogs || [];
-          storyTask.value = saved.storyTasks ? { scene: null, date: '', hasResponse: false, response: null } : null;
+        storyTask.value = { scene: null, date: '', hasResponse: false, response: null };
       } catch (err) {
         if (err.message.includes("401")) {
           view.value = "login";
@@ -1938,7 +1938,7 @@ const app = createApp({
       // computed
       streakCount, todaySubjects, subjectLessonDays, currentActivity,
       isLoggedIn, totalActivities, progressPercent, subjectMeta, feedbackCss,
-      navItems, achievements, wrongAnswers,
+      navItems, wrongAnswers,
       currentEmotionQuestion, emotionGameProgress,
       currentStrategies, strategyStats, getStrategyById,
       // strategy detail computed
