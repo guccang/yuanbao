@@ -505,7 +505,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   place-items: center;
   overflow: hidden;
   border: 3px solid white;
-  border-radius: 32px;
+  border-radius: 30px;
   background:
     radial-gradient(circle at 10% 12%, rgba(255,216,111,.26), transparent 7rem),
     radial-gradient(circle at 92% 88%, rgba(246,164,187,.20), transparent 8rem),
@@ -1114,7 +1114,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   place-items: center;
   gap: 4px;
   border: 2px solid var(--line);
-  border-radius: 18px;
+  border-radius: 22px;
   background: rgba(255,255,255,.86);
   text-align: center;
   transition: transform .15s;
@@ -1660,7 +1660,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .strategy-stat-card {
   padding: 16px 8px;
   border: 2px solid white;
-  border-radius: 18px;
+  border-radius: 22px;
   background: rgba(255,255,255,.88);
   box-shadow: var(--shadow-soft);
   text-align: center;
@@ -2390,7 +2390,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .comm-form-card {
   background: rgba(255,255,255,.84);
   border: 2px solid white;
-  border-radius: 18px;
+  border-radius: 22px;
   box-shadow: 0 4px 20px rgba(0,0,0,.06);
   padding: 22px;
   margin-bottom: 20px;
@@ -2690,7 +2690,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .story-history-item {
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: 22px;
   background: rgba(255,255,255,.88);
   border: 2px solid white;
   box-shadow: var(--shadow-soft);
