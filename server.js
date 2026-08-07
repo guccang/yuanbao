@@ -166,6 +166,12 @@ function destroySession(request, response) {
 }
 
 // ---- 辅助函数 ----
+function localDate(date) {
+  if (!date) date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
 function sendJson(response, status, value) {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -290,12 +296,10 @@ function generateExportHtml(account) {
   function streakDays() {
     const dates = new Set(completed.map(r => r.date));
     let cursor = new Date();
-    const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const local = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    const local = localDate();
     if (!dates.has(local)) cursor.setDate(cursor.getDate() - 1);
     let count = 0;
-    while (dates.has(new Date(cursor.getTime() - cursor.getTimezoneOffset() * 60000).toISOString().slice(0, 10))) {
+    while (dates.has(localDate(cursor))) {
       count++;
       cursor.setDate(cursor.getDate() - 1);
     }
@@ -486,8 +490,7 @@ async function handleApi(request, response, requestPath) {
     const accountId = generateToken();
     const salt = generateSalt();
     const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const today = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const today = localDate(now);
     persistedState.accounts[accountId] = {
       username: username.trim(),
       passwordHash: hashPassword(password, salt),
@@ -662,9 +665,7 @@ async function handleApi(request, response, requestPath) {
       return sendJson(response, 400, { error: "情绪分区无效" });
     }
     if (!account.emotionCheckins) account.emotionCheckins = [];
-    const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    const todayKey = localDate();
     // 同一天只保留最新的自评
     const existing = account.emotionCheckins.findIndex(c => c.date === todayKey);
     const checkin = { date: todayKey, zone, createdAt: new Date().toISOString() };
@@ -684,9 +685,7 @@ async function handleApi(request, response, requestPath) {
       return sendJson(response, 400, { error: "策略标识无效" });
     }
     if (!account.strategyRecords) account.strategyRecords = [];
-    const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    const todayKey = localDate();
     const record = {
       date: todayKey,
       zone,
@@ -722,9 +721,7 @@ async function handleApi(request, response, requestPath) {
       return sendJson(response, 400, { error: "游戏数据格式无效" });
     }
     if (!account.emotionGames) account.emotionGames = [];
-    const today = new Date();
-    const offset = today.getTimezoneOffset() * 60000;
-    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    const todayKey = localDate();
     const game = {
       date: todayKey,
       answers,
@@ -759,8 +756,7 @@ async function handleApi(request, response, requestPath) {
 
     // 计算 ISO 周编号
     const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const localDateStr = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const localDateStr = localDate(now);
     const d = new Date(localDateStr);
     d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
     const weekNumber = Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7);
@@ -796,8 +792,7 @@ async function handleApi(request, response, requestPath) {
   // ---- 今日故事任务 ----
   if (requestPath === "/api/communication/story" && request.method === "GET") {
     const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const todayKey = localDate(now);
     const age = account.profile?.age || 4;
     const scene = getStoryScene(todayKey, age);
     const existing = (account.storyTasks || []).find(s => s.date === todayKey);
@@ -814,8 +809,7 @@ async function handleApi(request, response, requestPath) {
     }
     if (!account.storyTasks) account.storyTasks = [];
     const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const todayKey = localDate(now);
     const age = account.profile?.age || 4;
     const scene = getStoryScene(todayKey, age);
     const entry = {
