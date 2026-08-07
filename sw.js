@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE = "yuanbao-v1";
+const CACHE = "yuanbao-v2";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -30,7 +30,7 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// 拦截请求：缓存优先，网络回退
+// 拦截请求：网络优先，离线时回退缓存
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   // 只缓存同源 GET 请求
@@ -38,16 +38,18 @@ self.addEventListener("fetch", event => {
   // API 请求不缓存
   if (url.pathname.startsWith("/api/")) return;
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      const fetched = fetch(event.request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || fetched;
-    })
-  );
+  event.respondWith((async () => {
+    try {
+      const response = await fetch(event.request);
+      if (response.ok) {
+        const cache = await caches.open(CACHE);
+        await cache.put(event.request, response.clone());
+      }
+      return response;
+    } catch (error) {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      throw error;
+    }
+  })());
 });

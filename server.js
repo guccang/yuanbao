@@ -873,9 +873,8 @@ const server = http.createServer(async (request, response) => {
     const ext = path.extname(filePath);
     const contentType = types[ext] || "application/octet-stream";
 
-    // 缓存策略：CSS/JS 模块文件启用强缓存
-    const isModule = ext === ".js" || ext === ".css";
-    const cacheControl = isModule ? "public, max-age=3600" : "no-cache";
+    // Service Worker 必须每次重新检查，其他静态资源由服务端校验新鲜度。
+    const cacheControl = relativePath === "sw.js" ? "no-store" : "no-cache";
 
     // gzip 压缩：仅对大于 1KB 的文本类响应启用
     const acceptsGzip = request.headers["accept-encoding"]?.includes("gzip");
