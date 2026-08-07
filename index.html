@@ -582,7 +582,6 @@
                       v-if="week.zoneDays[zone.id]"
                       class="weekly-bar-segment"
                       :style="'width:' + (week.zoneDays[zone.id] / week.totalDays * 100) + '%;background:' + zone.color">
-                      <span v-if="week.zoneDays[zone.id] / week.totalDays >= 0.2" class="weekly-bar-segment-label">{{ week.zoneDays[zone.id] }}天</span>
                     </div>
                     <div v-if="!week.hasCheckin" class="weekly-bar-empty">暂无数据</div>
                   </div>
