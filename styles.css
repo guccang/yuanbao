@@ -1884,7 +1884,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     --shadow-soft: 0 7px 18px rgba(0,0,0,.30);
   }
   body::before, body::after { opacity: .15; }
-  .form-card, .profile-card, .subject-progress, .schedule-row, .history-item, .badge-item {
+  .form-card, .profile-card, .subject-progress, .schedule-row, .history-item, .badge-item, .comm-log-item {
     background: rgba(255,255,255,.06);
   }
   .field input, .answer, .schedule-edit-btn, .schedule-dialog, .secondary-btn {
@@ -2428,12 +2428,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-top: 2px solid #f0e8e0;
 }
 .comm-log-item {
-  background: rgba(255,255,255,.84);
-  border: 2px solid white;
-  border-radius: 18px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  position: relative;
+  overflow: hidden;
+  background: white;
+  border: 3px solid white;
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
   padding: 18px 20px;
   margin-bottom: 14px;
+  transition: transform .18s, box-shadow .18s;
+}
+.comm-log-item::after {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 28px;
+  opacity: .07;
+  pointer-events: none;
+  content: "📝";
+  transform: rotate(5deg);
 }
 .comm-log-item-header {
   display: flex;
@@ -2500,6 +2513,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-radius: 8px;
   font-size: 14px;
   color: #403b46;
+}
+
+/* ======================== 沟通日志条目悬停 ======================== */
+.comm-log-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 rgba(101, 83, 96, .06), var(--shadow);
 }
 
 /* ======================== 今日故事任务 ======================== */
