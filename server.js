@@ -656,184 +656,184 @@ async function handleApi(request, response, requestPath) {
   }
 
   // ---- 情绪分区自评 ----
-	  if (requestPath === "/api/emotion/checkin" && request.method === "POST") {
-	    const { zone } = await readJson(request);
-	    if (!["blue", "green", "yellow", "red"].includes(zone)) {
-	      return sendJson(response, 400, { error: "情绪分区无效" });
-	    }
-	    if (!account.emotionCheckins) account.emotionCheckins = [];
-	    const today = new Date();
-	    const offset = today.getTimezoneOffset() * 60000;
-	    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
-	    // 同一天只保留最新的自评
-	    const existing = account.emotionCheckins.findIndex(c => c.date === todayKey);
-	    const checkin = { date: todayKey, zone, createdAt: new Date().toISOString() };
-	    if (existing === -1) account.emotionCheckins.push(checkin);
-	    else account.emotionCheckins[existing] = checkin;
-	    await persistState();
-	    return sendJson(response, 200, checkin);
-	  }
+  if (requestPath === "/api/emotion/checkin" && request.method === "POST") {
+    const { zone } = await readJson(request);
+    if (!["blue", "green", "yellow", "red"].includes(zone)) {
+      return sendJson(response, 400, { error: "情绪分区无效" });
+    }
+    if (!account.emotionCheckins) account.emotionCheckins = [];
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000;
+    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    // 同一天只保留最新的自评
+    const existing = account.emotionCheckins.findIndex(c => c.date === todayKey);
+    const checkin = { date: todayKey, zone, createdAt: new Date().toISOString() };
+    if (existing === -1) account.emotionCheckins.push(checkin);
+    else account.emotionCheckins[existing] = checkin;
+    await persistState();
+    return sendJson(response, 200, checkin);
+  }
 
-	  // ---- 情绪调节策略记录 ----
-	  if (requestPath === "/api/emotion/strategy" && request.method === "POST") {
-	    const { zone, strategy } = await readJson(request);
-	    if (!["blue", "green", "yellow", "red"].includes(zone)) {
-	      return sendJson(response, 400, { error: "情绪分区无效" });
-	    }
-	    if (!strategy || typeof strategy !== "string") {
-	      return sendJson(response, 400, { error: "策略标识无效" });
-	    }
-	    if (!account.strategyRecords) account.strategyRecords = [];
-	    const today = new Date();
-	    const offset = today.getTimezoneOffset() * 60000;
-	    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
-	    const record = {
-	      date: todayKey,
-	      zone,
-	      strategy,
-	      usedAt: new Date().toISOString()
-	    };
-	    account.strategyRecords.push(record);
-	    await persistState();
-	    return sendJson(response, 200, record);
-	  }
+  // ---- 情绪调节策略记录 ----
+  if (requestPath === "/api/emotion/strategy" && request.method === "POST") {
+    const { zone, strategy } = await readJson(request);
+    if (!["blue", "green", "yellow", "red"].includes(zone)) {
+      return sendJson(response, 400, { error: "情绪分区无效" });
+    }
+    if (!strategy || typeof strategy !== "string") {
+      return sendJson(response, 400, { error: "策略标识无效" });
+    }
+    if (!account.strategyRecords) account.strategyRecords = [];
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000;
+    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    const record = {
+      date: todayKey,
+      zone,
+      strategy,
+      usedAt: new Date().toISOString()
+    };
+    account.strategyRecords.push(record);
+    await persistState();
+    return sendJson(response, 200, record);
+  }
 
-	  // ---- 情绪调节策略统计 ----
-	  if (requestPath === "/api/emotion/strategy/stats" && request.method === "GET") {
-	    const records = account.strategyRecords || [];
-	    const byZone = {};
-	    const byStrategy = {};
-	    for (const r of records) {
-	      byZone[r.zone] = (byZone[r.zone] || 0) + 1;
-	      byStrategy[r.strategy] = (byStrategy[r.strategy] || 0) + 1;
-	    }
-	    return sendJson(response, 200, {
-	      total: records.length,
-	      byZone,
-	      byStrategy,
-	      recent: records.slice(-20).reverse()
-	    });
-	  }
+  // ---- 情绪调节策略统计 ----
+  if (requestPath === "/api/emotion/strategy/stats" && request.method === "GET") {
+    const records = account.strategyRecords || [];
+    const byZone = {};
+    const byStrategy = {};
+    for (const r of records) {
+      byZone[r.zone] = (byZone[r.zone] || 0) + 1;
+      byStrategy[r.strategy] = (byStrategy[r.strategy] || 0) + 1;
+    }
+    return sendJson(response, 200, {
+      total: records.length,
+      byZone,
+      byStrategy,
+      recent: records.slice(-20).reverse()
+    });
+  }
 
-	  // ---- 情绪识别游戏 ----
-	  if (requestPath === "/api/emotion/game" && request.method === "POST") {
-	    const { answers, score, total } = await readJson(request);
-	    if (!Array.isArray(answers) || typeof score !== "number" || typeof total !== "number") {
-	      return sendJson(response, 400, { error: "游戏数据格式无效" });
-	    }
-	    if (!account.emotionGames) account.emotionGames = [];
-	    const today = new Date();
-	    const offset = today.getTimezoneOffset() * 60000;
-	    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
-	    const game = {
-	      date: todayKey,
-	      answers,
-	      score,
-	      total,
-	      createdAt: new Date().toISOString()
-	    };
-	    account.emotionGames.push(game);
-	    await persistState();
-	    return sendJson(response, 200, game);
-	  }
+  // ---- 情绪识别游戏 ----
+  if (requestPath === "/api/emotion/game" && request.method === "POST") {
+    const { answers, score, total } = await readJson(request);
+    if (!Array.isArray(answers) || typeof score !== "number" || typeof total !== "number") {
+      return sendJson(response, 400, { error: "游戏数据格式无效" });
+    }
+    if (!account.emotionGames) account.emotionGames = [];
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000;
+    const todayKey = new Date(today.getTime() - offset).toISOString().slice(0, 10);
+    const game = {
+      date: todayKey,
+      answers,
+      score,
+      total,
+      createdAt: new Date().toISOString()
+    };
+    account.emotionGames.push(game);
+    await persistState();
+    return sendJson(response, 200, game);
+  }
 
-	  // ---- 沟通日志 ----
-	  if (requestPath === "/api/communication/log" && request.method === "POST") {
-	    const { vocabulary, sentences, conversationTurns, narrativeScore, initiativeScore } = await readJson(request);
-	    if (typeof vocabulary !== "number" || vocabulary < 0 || vocabulary > 200) {
-	      return sendJson(response, 400, { error: "词汇量数据无效" });
-	    }
-	    if (!Array.isArray(sentences) || sentences.length !== 3 || sentences.some(s => typeof s !== "string" || s.trim().length < 1)) {
-	      return sendJson(response, 400, { error: "请提供 3 句语言样本" });
-	    }
-	    if (typeof conversationTurns !== "number" || conversationTurns < 0 || conversationTurns > 50) {
-	      return sendJson(response, 400, { error: "对话轮次数据无效" });
-	    }
-	    if (typeof narrativeScore !== "number" || narrativeScore < 1 || narrativeScore > 5) {
-	      return sendJson(response, 400, { error: "叙事能力评分须在 1–5 之间" });
-	    }
-	    if (typeof initiativeScore !== "number" || initiativeScore < 1 || initiativeScore > 5) {
-	      return sendJson(response, 400, { error: "沟通主动性评分须在 1–5 之间" });
-	    }
-	    if (!account.communicationLogs) account.communicationLogs = [];
+  // ---- 沟通日志 ----
+  if (requestPath === "/api/communication/log" && request.method === "POST") {
+    const { vocabulary, sentences, conversationTurns, narrativeScore, initiativeScore } = await readJson(request);
+    if (typeof vocabulary !== "number" || vocabulary < 0 || vocabulary > 200) {
+      return sendJson(response, 400, { error: "词汇量数据无效" });
+    }
+    if (!Array.isArray(sentences) || sentences.length !== 3 || sentences.some(s => typeof s !== "string" || s.trim().length < 1)) {
+      return sendJson(response, 400, { error: "请提供 3 句语言样本" });
+    }
+    if (typeof conversationTurns !== "number" || conversationTurns < 0 || conversationTurns > 50) {
+      return sendJson(response, 400, { error: "对话轮次数据无效" });
+    }
+    if (typeof narrativeScore !== "number" || narrativeScore < 1 || narrativeScore > 5) {
+      return sendJson(response, 400, { error: "叙事能力评分须在 1–5 之间" });
+    }
+    if (typeof initiativeScore !== "number" || initiativeScore < 1 || initiativeScore > 5) {
+      return sendJson(response, 400, { error: "沟通主动性评分须在 1–5 之间" });
+    }
+    if (!account.communicationLogs) account.communicationLogs = [];
 
-	    // 计算 ISO 周编号
-	    const now = new Date();
-	    const offset = now.getTimezoneOffset() * 60000;
-	    const localDateStr = new Date(now.getTime() - offset).toISOString().slice(0, 10);
-	    const d = new Date(localDateStr);
-	    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-	    const weekNumber = Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7);
-	    const year = d.getFullYear();
-	    const weekId = year + "-W" + String(weekNumber).padStart(2, "0");
+    // 计算 ISO 周编号
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const localDateStr = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const d = new Date(localDateStr);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const weekNumber = Math.ceil(((d - new Date(d.getFullYear(), 0, 4)) / 86400000 + 1) / 7);
+    const year = d.getFullYear();
+    const weekId = year + "-W" + String(weekNumber).padStart(2, "0");
 
-	    const log = {
-	      weekId,
-	      year,
-	      weekNumber,
-	      vocabulary,
-	      sentences: sentences.map(s => s.trim()),
-	      conversationTurns,
-	      narrativeScore,
-	      initiativeScore,
-	      createdAt: new Date().toISOString(),
-	      date: localDateStr
-	    };
+    const log = {
+      weekId,
+      year,
+      weekNumber,
+      vocabulary,
+      sentences: sentences.map(s => s.trim()),
+      conversationTurns,
+      narrativeScore,
+      initiativeScore,
+      createdAt: new Date().toISOString(),
+      date: localDateStr
+    };
 
-	    // 同一周覆盖旧记录
-	    const existing = account.communicationLogs.findIndex(l => l.weekId === weekId);
-	    if (existing === -1) account.communicationLogs.push(log);
-	    else account.communicationLogs[existing] = log;
+    // 同一周覆盖旧记录
+    const existing = account.communicationLogs.findIndex(l => l.weekId === weekId);
+    if (existing === -1) account.communicationLogs.push(log);
+    else account.communicationLogs[existing] = log;
 
-	    await persistState();
-	    return sendJson(response, 200, log);
-	  }
+    await persistState();
+    return sendJson(response, 200, log);
+  }
 
-	  if (requestPath === "/api/communication/log" && request.method === "GET") {
-	    return sendJson(response, 200, (account.communicationLogs || []).sort((a, b) => b.weekId.localeCompare(a.weekId)));
-	  }
+  if (requestPath === "/api/communication/log" && request.method === "GET") {
+    return sendJson(response, 200, (account.communicationLogs || []).sort((a, b) => b.weekId.localeCompare(a.weekId)));
+  }
 
-	  // ---- 今日故事任务 ----
-	  if (requestPath === "/api/communication/story" && request.method === "GET") {
-	    const now = new Date();
-	    const offset = now.getTimezoneOffset() * 60000;
-	    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
-	    const age = account.profile?.age || 4;
-	    const scene = getStoryScene(todayKey, age);
-	    const existing = (account.storyTasks || []).find(s => s.date === todayKey);
-	    return sendJson(response, 200, { scene, date: todayKey, hasResponse: !!existing, response: existing || null });
-	  }
+  // ---- 今日故事任务 ----
+  if (requestPath === "/api/communication/story" && request.method === "GET") {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const age = account.profile?.age || 4;
+    const scene = getStoryScene(todayKey, age);
+    const existing = (account.storyTasks || []).find(s => s.date === todayKey);
+    return sendJson(response, 200, { scene, date: todayKey, hasResponse: !!existing, response: existing || null });
+  }
 
-	  if (requestPath === "/api/communication/story" && request.method === "POST") {
-	    const { childResponse, narrativeScore, parentNotes, sceneId } = await readJson(request);
-	    if (!childResponse || typeof childResponse !== "string" || childResponse.trim().length < 1) {
-	      return sendJson(response, 400, { error: "请记录宝宝的故事描述" });
-	    }
-	    if (typeof narrativeScore !== "number" || narrativeScore < 1 || narrativeScore > 5) {
-	      return sendJson(response, 400, { error: "叙事能力评分须在 1–5 之间" });
-	    }
-	    if (!account.storyTasks) account.storyTasks = [];
-	    const now = new Date();
-	    const offset = now.getTimezoneOffset() * 60000;
-	    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
-	    const age = account.profile?.age || 4;
-	    const scene = getStoryScene(todayKey, age);
-	    const entry = {
-	      date: todayKey,
-	      sceneId: sceneId || scene.id,
-	      childResponse: childResponse.trim().slice(0, 500),
-	      narrativeScore,
-	      parentNotes: (parentNotes || "").trim().slice(0, 200),
-	      createdAt: new Date().toISOString()
-	    };
-	    const existing = account.storyTasks.findIndex(s => s.date === todayKey);
-	    if (existing === -1) account.storyTasks.push(entry);
-	    else account.storyTasks[existing] = entry;
-	    await persistState();
-	    return sendJson(response, 200, entry);
-	  }
+  if (requestPath === "/api/communication/story" && request.method === "POST") {
+    const { childResponse, narrativeScore, parentNotes, sceneId } = await readJson(request);
+    if (!childResponse || typeof childResponse !== "string" || childResponse.trim().length < 1) {
+      return sendJson(response, 400, { error: "请记录宝宝的故事描述" });
+    }
+    if (typeof narrativeScore !== "number" || narrativeScore < 1 || narrativeScore > 5) {
+      return sendJson(response, 400, { error: "叙事能力评分须在 1–5 之间" });
+    }
+    if (!account.storyTasks) account.storyTasks = [];
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const todayKey = new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    const age = account.profile?.age || 4;
+    const scene = getStoryScene(todayKey, age);
+    const entry = {
+      date: todayKey,
+      sceneId: sceneId || scene.id,
+      childResponse: childResponse.trim().slice(0, 500),
+      narrativeScore,
+      parentNotes: (parentNotes || "").trim().slice(0, 200),
+      createdAt: new Date().toISOString()
+    };
+    const existing = account.storyTasks.findIndex(s => s.date === todayKey);
+    if (existing === -1) account.storyTasks.push(entry);
+    else account.storyTasks[existing] = entry;
+    await persistState();
+    return sendJson(response, 200, entry);
+  }
 
-	  // ---- 列出账户（用于切换） ----
+  // ---- 列出账户（用于切换） ----
   if (requestPath === "/api/accounts" && request.method === "GET") {
     const list = Object.entries(persistedState.accounts).map(([id, acct]) => ({
       accountId: id,
